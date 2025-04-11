@@ -11,6 +11,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const { login, setTestUser } = useAuth();
   const navigate = useNavigate();
@@ -18,13 +19,18 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError("");
     
     try {
+      console.log("Attempting login with:", email);
       const success = await login(email, password);
       if (success) {
-        // In a real app, we would redirect to the appropriate dashboard based on the user's role
+        console.log("Login successful, navigating to /");
         navigate("/");
       }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Failed to login. Please check your credentials and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -62,6 +68,11 @@ const Login = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">Email</label>
               <Input

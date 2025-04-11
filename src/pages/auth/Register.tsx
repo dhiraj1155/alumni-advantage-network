@@ -19,6 +19,7 @@ const Register = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordsMatch, setPasswordsMatch] = useState(true);
+  const [error, setError] = useState("");
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -49,6 +50,7 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     
     if (formData.password !== formData.confirmPassword) {
       setPasswordsMatch(false);
@@ -58,6 +60,7 @@ const Register = () => {
     setIsSubmitting(true);
     
     try {
+      console.log("Registering with:", formData.email, formData.firstName, formData.lastName, formData.role);
       const success = await register(
         formData.email,
         formData.password,
@@ -67,9 +70,12 @@ const Register = () => {
       );
       
       if (success) {
-        // In a real app, we would redirect to the appropriate dashboard based on the user's role
+        console.log("Registration successful, navigating to /");
         navigate("/");
       }
+    } catch (err) {
+      console.error("Registration error:", err);
+      setError("Failed to register. Please try again with a different email.");
     } finally {
       setIsSubmitting(false);
     }
@@ -88,6 +94,11 @@ const Register = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="firstName" className="text-sm font-medium">First Name</label>

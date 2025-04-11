@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserRole } from "@/types";
 import { mockUsers, setCurrentUserByRole } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: User | null;
@@ -17,51 +19,125 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is in localStorage (mock persistence)
-    const storedUser = localStorage.getItem("currentUser");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Failed to parse stored user:", error);
-        localStorage.removeItem("currentUser");
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession);
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          // Get user profile data from our profiles table
+          setTimeout(async () => {
+            try {
+              const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', currentSession.user.id)
+                .single();
+                
+              if (error) {
+                console.error("Error fetching user profile:", error);
+                return;
+              }
+              
+              if (data) {
+                const userData: User = {
+                  id: currentSession.user.id,
+                  email: currentSession.user.email || '',
+                  firstName: data.first_name,
+                  lastName: data.last_name,
+                  role: data.role as UserRole,
+                  avatar: data.avatar
+                };
+                
+                setUser(userData);
+                console.log("User profile loaded:", userData);
+              }
+            } catch (error) {
+              console.error("Failed to fetch profile:", error);
+            }
+          }, 0);
+        } else {
+          setUser(null);
+        }
       }
-    }
-    setIsLoading(false);
+    );
+
+    // THEN check for existing session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (initialSession?.user) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', initialSession.user.id)
+            .single();
+            
+          if (data) {
+            const userData: User = {
+              id: initialSession.user.id,
+              email: initialSession.user.email || '',
+              firstName: data.first_name,
+              lastName: data.last_name,
+              role: data.role as UserRole,
+              avatar: data.avatar
+            };
+            
+            setUser(userData);
+            console.log("Initial user profile loaded:", userData);
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // In a real app, this would be an API call to authenticate
-    // For now, we'll just check if the email exists in our mock data
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network request
+      console.log("Signing in with:", email);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
-      const foundUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (foundUser) {
-        setUser(foundUser);
-        localStorage.setItem("currentUser", JSON.stringify(foundUser));
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${foundUser.firstName}!`,
-        });
-        return true;
-      } else {
+      if (error) {
+        console.error("Login error:", error);
         toast({
           title: "Login failed",
-          description: "Invalid email or password",
+          description: error.message,
           variant: "destructive",
         });
         return false;
       }
-    } catch (error) {
-      console.error("Login error:", error);
+      
+      // We don't need to manually set user here since the onAuthStateChange 
+      // event will handle it
+      toast({
+        title: "Login successful",
+        description: "Welcome back!",
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Unexpected login error:", error);
       toast({
         title: "Login failed",
         description: "An error occurred during login. Please try again.",
@@ -83,42 +159,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network request
+      console.log("Registering with:", email, firstName, lastName, role);
       
-      // Check if email already exists
-      const existingUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+      // Register the user with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            firstName,
+            lastName,
+            role,
+          }
+        }
+      });
       
-      if (existingUser) {
+      if (error) {
+        console.error("Registration error:", error);
         toast({
           title: "Registration failed",
-          description: "Email already in use. Please use a different email or log in.",
+          description: error.message,
           variant: "destructive",
         });
         return false;
       }
-
-      // In a real app, this would create a new user in the database
-      // For our mock data, we'll just create a new user object
-      const newUser: User = {
-        id: `u${mockUsers.length + 1}`,
-        email,
-        firstName,
-        lastName,
-        role,
-        avatar: `https://ui-avatars.com/api/?name=${firstName}+${lastName}`
-      };
       
-      // In a real app, we would save this user to the database
-      // For now, we'll just set it as the current user
-      setUser(newUser);
-      localStorage.setItem("currentUser", JSON.stringify(newUser));
+      // We don't need to manually set user here since the onAuthStateChange 
+      // event will handle it, and our trigger will create the profile
       
       toast({
         title: "Registration successful",
         description: `Welcome, ${firstName}!`,
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
       toast({
         title: "Registration failed",
@@ -131,13 +205,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("currentUser");
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout failed",
+        description: "An error occurred during logout. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Helper function for testing different user roles
@@ -145,7 +228,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const testUser = setCurrentUserByRole(role);
     if (testUser) {
       setUser(testUser);
-      localStorage.setItem("currentUser", JSON.stringify(testUser));
       toast({
         title: "Test user set",
         description: `Now viewing as ${role}: ${testUser.firstName} ${testUser.lastName}`,
