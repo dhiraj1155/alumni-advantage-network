@@ -120,16 +120,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Login error:", error);
-        toast({
-          title: "Login failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        
+        // Handle specific errors
+        if (error.message.includes("Email not confirmed")) {
+          toast({
+            title: "Email not verified",
+            description: "Please check your email and verify your account before logging in.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Login failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         return false;
       }
       
-      // We don't need to manually set user here since the onAuthStateChange 
-      // event will handle it
       toast({
         title: "Login successful",
         description: "Welcome back!",
@@ -170,7 +178,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             firstName,
             lastName,
             role,
-          }
+          },
+          emailRedirectTo: window.location.origin + '/auth/login'
         }
       });
       
@@ -184,12 +193,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
       
-      // We don't need to manually set user here since the onAuthStateChange 
-      // event will handle it, and our trigger will create the profile
-      
+      // Show verification email notification
       toast({
         title: "Registration successful",
-        description: `Welcome, ${firstName}!`,
+        description: "A verification email has been sent to your inbox. Please verify your email to continue.",
       });
       return true;
     } catch (error: any) {

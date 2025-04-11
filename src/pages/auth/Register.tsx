@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserRole } from "@/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -20,6 +22,7 @@ const Register = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordsMatch, setPasswordsMatch] = useState(true);
   const [error, setError] = useState("");
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -70,8 +73,9 @@ const Register = () => {
       );
       
       if (success) {
-        console.log("Registration successful, navigating to /");
-        navigate("/");
+        console.log("Registration successful");
+        setRegistrationSuccess(true);
+        // Don't navigate immediately, let the user see the success message
       }
     } catch (err) {
       console.error("Registration error:", err);
@@ -80,6 +84,35 @@ const Register = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-2" />
+            <CardTitle className="text-2xl font-bold text-center">
+              Registration Successful!
+            </CardTitle>
+            <CardDescription className="text-center">
+              A verification email has been sent to your inbox. Please check your email and verify your account to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-center text-sm text-muted-foreground">
+              After verification, you'll be able to log in to your account.
+            </p>
+            <Button 
+              className="w-full bg-placement-primary hover:bg-placement-primary/90"
+              onClick={() => navigate('/auth/login')}
+            >
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
@@ -95,9 +128,10 @@ const Register = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-                {error}
-              </div>
+              <Alert className="bg-red-50 border-red-200 text-red-700">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -175,6 +209,13 @@ const Register = () => {
                 <p className="text-red-500 text-sm">Passwords do not match</p>
               )}
             </div>
+            
+            <Alert className="bg-blue-50 border-blue-200 text-blue-700">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                You'll need to verify your email address before you can log in.
+              </AlertDescription>
+            </Alert>
             
             <Button 
               type="submit" 

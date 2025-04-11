@@ -1,20 +1,31 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserRole } from "@/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
 
   const { login, setTestUser } = useAuth();
   const navigate = useNavigate();
+
+  // Check for email verification success in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('emailVerified') === 'true') {
+      setInfoMessage("Email verified successfully! You can now log in.");
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,11 +78,19 @@ const Login = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {infoMessage && (
+            <Alert className="mb-4 bg-green-50 text-green-700 border-green-200">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{infoMessage}</AlertDescription>
+            </Alert>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-                {error}
-              </div>
+              <Alert className="bg-red-50 border-red-200 text-red-700">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">Email</label>
