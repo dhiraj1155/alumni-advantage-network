@@ -24,15 +24,15 @@ const Students = () => {
   useEffect(() => {
     let result = students;
     
-    if (filters.year) {
+    if (filters.year && filters.year !== "all-years") {
       result = result.filter(student => student.year === filters.year);
     }
     
-    if (filters.department) {
+    if (filters.department && filters.department !== "all-branches") {
       result = result.filter(student => student.department === filters.department);
     }
     
-    if (filters.placed) {
+    if (filters.placed && filters.placed !== "all-students") {
       const isPlaced = filters.placed === "Placed";
       result = result.filter(student => student.isPlaced === isPlaced);
     }
@@ -87,7 +87,7 @@ const Students = () => {
                   <SelectValue placeholder="All Years" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Years</SelectItem>
+                  <SelectItem value="all-years">All Years</SelectItem>
                   <SelectItem value={Year.FY}>{Year.FY}</SelectItem>
                   <SelectItem value={Year.SY}>{Year.SY}</SelectItem>
                   <SelectItem value={Year.TY}>{Year.TY}</SelectItem>
@@ -103,7 +103,7 @@ const Students = () => {
                   <SelectValue placeholder="All Branches" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Branches</SelectItem>
+                  <SelectItem value="all-branches">All Branches</SelectItem>
                   {Object.values(Department).map((dept) => (
                     <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                   ))}
@@ -118,7 +118,7 @@ const Students = () => {
                   <SelectValue placeholder="All Students" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Students</SelectItem>
+                  <SelectItem value="all-students">All Students</SelectItem>
                   <SelectItem value="Placed">Placed</SelectItem>
                   <SelectItem value="Unplaced">Unplaced</SelectItem>
                 </SelectContent>
