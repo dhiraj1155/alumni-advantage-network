@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +58,14 @@ const StudentOpportunities = () => {
       year: ""
     });
     setSearchTerm("");
+  };
+
+  const handleTabChange = (tabId: string) => {
+    // Find the tab element and focus it
+    const tabElement = document.querySelector(`[data-value="${tabId}"]`);
+    if (tabElement) {
+      (tabElement as HTMLElement).focus();
+    }
   };
 
   return (
@@ -271,7 +278,7 @@ const StudentOpportunities = () => {
                 <p className="text-muted-foreground mb-4">You haven't applied to any jobs yet.</p>
                 <Button 
                   variant="outline" 
-                  onClick={() => document.querySelector('[data-value="all"]')?.click()}
+                  onClick={() => handleTabChange("all")}
                 >
                   Browse Opportunities
                 </Button>

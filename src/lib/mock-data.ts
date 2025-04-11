@@ -1,4 +1,3 @@
-
 import { 
   User, UserRole, Student, Alumni, PlacementOfficer, 
   Department, Year, JobOpportunity, QuizResult, 
@@ -270,7 +269,7 @@ export const mockPlacementStats: PlacementStats[] = [
 ];
 
 // Current User (for development purposes)
-export let currentUser: User | null = mockUsers[0]; // Default to the first student
+export let currentUser: User | null = mockUsers[0]; 
 
 // Helper function to get a user by role (for testing different UIs)
 export const setCurrentUserByRole = (role: UserRole) => {
@@ -306,3 +305,6 @@ export const getCurrentUserData = () => {
       return { user: currentUser };
   }
 };
+
+// Export the Department and Year enums from @/types
+export { Department, Year } from "@/types";

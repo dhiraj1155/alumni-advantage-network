@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Building, Calendar, MapPin, Briefcase, Clock, CreditCard, Users, Plus, FileText, Edit, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Department, Year, mockJobOpportunities } from "@/lib/mock-data";
+import { Department, Year } from "@/types";
+import { mockJobOpportunities } from "@/lib/mock-data";
 
 const Opportunities = () => {
   const { toast } = useToast();
@@ -74,7 +74,7 @@ const Opportunities = () => {
         <TabsContent value="view" className="space-y-4 mt-4">
           {opportunities.length > 0 ? (
             opportunities.map((opportunity, index) => (
-              <Card key={index}>
+              <Card key={opportunity.id}>
                 <CardHeader className="pb-3">
                   <div className="flex justify-between">
                     <div>
