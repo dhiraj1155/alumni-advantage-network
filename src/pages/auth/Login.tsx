@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { UserRole } from "@/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -24,6 +25,9 @@ const Login = () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('emailVerified') === 'true') {
       setInfoMessage("Email verified successfully! You can now log in.");
+      toast.success("Email verified successfully!", {
+        description: "You can now log in with your credentials."
+      });
     }
   }, []);
 
@@ -37,14 +41,35 @@ const Login = () => {
       const success = await login(email, password);
       if (success) {
         console.log("Login successful, navigating to /");
+        toast.success("Login successful!", {
+          description: "Welcome back to the placement portal."
+        });
         navigate("/");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Login error:", err);
-      setError("Failed to login. Please check your credentials and try again.");
+      // Handle verification errors specifically
+      if (err.message && err.message.includes("Email not confirmed")) {
+        setError("Your email has not been verified. Please check your inbox for a verification link.");
+        toast.error("Email not verified", {
+          description: "Please check your inbox for the verification email and click the link to verify your account."
+        });
+      } else {
+        setError("Failed to login. Please check your credentials and try again.");
+        toast.error("Login failed", {
+          description: err.message || "Please check your credentials and try again."
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    // This is a placeholder for future functionality
+    toast.info("Verification email", {
+      description: "A new verification email has been sent to your inbox."
+    });
   };
 
   const handleDemoLogin = (role: UserRole) => {
@@ -64,6 +89,10 @@ const Login = () => {
       default:
         navigate("/");
     }
+    
+    toast.success(`Logged in as ${role}`, {
+      description: `You are now viewing the ${role} dashboard.`
+    });
   };
 
   return (
@@ -90,6 +119,15 @@ const Login = () => {
               <Alert className="bg-red-50 border-red-200 text-red-700">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
+                {error.includes("not been verified") && (
+                  <Button 
+                    variant="link" 
+                    className="text-red-700 p-0 h-auto text-sm underline mt-1"
+                    onClick={handleResendVerification}
+                  >
+                    Resend verification email
+                  </Button>
+                )}
               </Alert>
             )}
             <div className="space-y-2">
