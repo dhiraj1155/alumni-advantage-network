@@ -16,11 +16,14 @@ import { supabase } from "@/integrations/supabase/client";
 interface StudentData {
   id: string;
   prn: string;
-  department: Department;
-  year: Year;
-  is_seda: boolean;
-  is_placed: boolean;
+  department: Department; // Using the enum from types.ts
+  year: Year; // Using the enum from types.ts
+  is_seda: boolean | null;
+  is_placed: boolean | null;
   resume_url: string | null;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
 }
 
 interface SocialLinks {
@@ -72,7 +75,18 @@ const Profile = () => {
           throw linksError;
         }
         
-        setStudentData(studentData);
+        // Convert the string department and year to enum values
+        const typedStudentData: StudentData = {
+          id: studentData.id,
+          prn: studentData.prn,
+          department: studentData.department as Department,
+          year: studentData.year as Year,
+          is_seda: studentData.is_seda,
+          is_placed: studentData.is_placed,
+          resume_url: studentData.resume_url,
+        };
+        
+        setStudentData(typedStudentData);
         setSocialLinks(linksData);
         
         // Initialize form data with fetched values
@@ -236,9 +250,8 @@ const Profile = () => {
         <h1 className="text-2xl font-bold">Profile</h1>
         <div className="mt-4 sm:mt-0">
           <Button
-            component="label"
             className="bg-placement-primary hover:bg-placement-primary/90"
-            htmlFor="resume-upload"
+            onClick={() => document.getElementById('resume-upload')?.click()}
           >
             <Upload className="mr-2 h-4 w-4" /> Upload Resume
             <input
