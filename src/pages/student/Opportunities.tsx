@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,20 +7,102 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Building, MapPin, Calendar, CreditCard, Users, Search, Filter, Briefcase, CheckCircle, XCircle } from "lucide-react";
-import { mockJobOpportunities } from "@/lib/mock-data";
+import { 
+  Building, 
+  MapPin, 
+  Calendar, 
+  CreditCard, 
+  Users, 
+  Search, 
+  Filter, 
+  Briefcase, 
+  CheckCircle, 
+  XCircle,
+  Loader2
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Department, Year } from "@/types";
+import { Department, Year, JobOpportunity, UserRole } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const StudentOpportunities = () => {
   const { toast } = useToast();
-  const [opportunities] = useState(mockJobOpportunities);
-  const [appliedJobs] = useState<string[]>(["j1"]); // Mock data - in a real app this would come from the API
+  const { user } = useAuth();
+  const [opportunities, setOpportunities] = useState<JobOpportunity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
+  const [applyingToJob, setApplyingToJob] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     department: "",
     year: ""
   });
+  
+  useEffect(() => {
+    fetchOpportunities();
+    if (user) {
+      fetchUserApplications();
+    }
+  }, [user]);
+  
+  const fetchOpportunities = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('job_opportunities')
+        .select('*')
+        .order('posted_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      const formattedOpportunities = data.map(item => ({
+        id: item.id,
+        title: item.title,
+        company: item.company,
+        location: item.location,
+        description: item.description,
+        requirements: item.requirements,
+        eligibleDepartments: item.eligible_departments,
+        eligibleYears: item.eligible_years,
+        minimumCgpa: item.minimum_cgpa,
+        package: item.package,
+        postedBy: {
+          id: item.posted_by,
+          name: "Training & Placement Cell",
+          role: UserRole.PLACEMENT
+        },
+        postedAt: item.posted_at,
+        deadline: item.deadline
+      }));
+      
+      setOpportunities(formattedOpportunities);
+    } catch (error: any) {
+      console.error("Error fetching opportunities:", error);
+      toast({
+        title: "Error fetching opportunities",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const fetchUserApplications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('job_id')
+        .eq('student_id', user?.id);
+        
+      if (error) throw error;
+      
+      const jobIds = data?.map(app => app.job_id) || [];
+      setAppliedJobs(jobIds);
+    } catch (error: any) {
+      console.error("Error fetching user applications:", error);
+    }
+  };
   
   const filteredOpportunities = opportunities.filter(job => {
     // Filter by search term
@@ -37,12 +120,50 @@ const StudentOpportunities = () => {
     return matchesSearch && matchesDepartment && matchesYear;
   });
   
-  const handleApply = (jobId: string) => {
-    // In a real app, we would send this to the API
-    toast({
-      title: "Application submitted",
-      description: "Your application has been successfully submitted.",
-    });
+  const handleApply = async (jobId: string) => {
+    // Don't allow double applications
+    if (appliedJobs.includes(jobId)) return;
+    
+    setApplyingToJob(jobId);
+    
+    try {
+      // Submit application to database
+      const { error } = await supabase
+        .from('job_applications')
+        .insert([
+          { job_id: jobId, student_id: user?.id }
+        ]);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setAppliedJobs([...appliedJobs, jobId]);
+      
+      toast({
+        title: "Application submitted",
+        description: "Your application has been successfully submitted.",
+      });
+    } catch (error: any) {
+      console.error("Error submitting application:", error);
+      
+      // Check for unique constraint violation (already applied)
+      if (error.code === '23505') {
+        toast({
+          title: "Already applied",
+          description: "You have already applied for this job opportunity.",
+        });
+        // Update local state to reflect this
+        setAppliedJobs([...appliedJobs, jobId]);
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setApplyingToJob(null);
+    }
   };
   
   const handleFilterChange = (key: string, value: string) => {
@@ -67,6 +188,17 @@ const StudentOpportunities = () => {
       (tabElement as HTMLElement).focus();
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Opportunities</h1>
+        <div className="flex justify-center items-center py-24">
+          <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -204,8 +336,15 @@ const StudentOpportunities = () => {
                     <Button 
                       className="bg-placement-primary hover:bg-placement-primary/90"
                       onClick={() => handleApply(job.id)}
+                      disabled={applyingToJob === job.id}
                     >
-                      Apply Now
+                      {applyingToJob === job.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Applying...
+                        </>
+                      ) : (
+                        "Apply Now"
+                      )}
                     </Button>
                   )}
                 </CardFooter>
@@ -350,8 +489,15 @@ const StudentOpportunities = () => {
                   <Button 
                     className="bg-placement-primary hover:bg-placement-primary/90"
                     onClick={() => handleApply(job.id)}
+                    disabled={applyingToJob === job.id}
                   >
-                    Apply Now
+                    {applyingToJob === job.id ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Applying...
+                      </>
+                    ) : (
+                      "Apply Now"
+                    )}
                   </Button>
                 )}
               </CardFooter>

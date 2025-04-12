@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,32 +10,238 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Building, Calendar, MapPin, Briefcase, Clock, CreditCard, Users, Plus, FileText, Edit, Trash } from "lucide-react";
+import { Building, Calendar, MapPin, Briefcase, Clock, CreditCard, Users, Plus, FileText, Edit, Trash, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Department, Year } from "@/types";
-import { mockJobOpportunities } from "@/lib/mock-data";
+import { Department, Year, JobOpportunity, UserRole } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const Opportunities = () => {
   const { toast } = useToast();
-  const [opportunities, setOpportunities] = useState(mockJobOpportunities);
+  const { user } = useAuth();
+  const [opportunities, setOpportunities] = useState<JobOpportunity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingOpportunity, setEditingOpportunity] = useState<JobOpportunity | null>(null);
+  const [applications, setApplications] = useState<{[jobId: string]: number}>({});
+  const [viewApplicationsFor, setViewApplicationsFor] = useState<string | null>(null);
+  const [jobApplicants, setJobApplicants] = useState<any[]>([]);
+  const [isLoadingApplicants, setIsLoadingApplicants] = useState(false);
+  
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
   const [selectedDepartments, setSelectedDepartments] = useState<Department[]>([]);
   const [selectedYears, setSelectedYears] = useState<Year[]>([]);
   
-  const onSubmit = (data: any) => {
-    // In a real app, we would send this to the API
-    console.log("Form data:", { ...data, eligibleDepartments: selectedDepartments, eligibleYears: selectedYears });
+  useEffect(() => {
+    fetchOpportunities();
+    fetchApplicationCounts();
+  }, []);
+  
+  useEffect(() => {
+    if (editingOpportunity) {
+      // Populate form with opportunity data
+      setValue("title", editingOpportunity.title);
+      setValue("company", editingOpportunity.company);
+      setValue("location", editingOpportunity.location);
+      setValue("description", editingOpportunity.description);
+      setValue("requirements", editingOpportunity.requirements.join(", "));
+      setValue("package", editingOpportunity.package);
+      setValue("minimumCgpa", editingOpportunity.minimumCgpa);
+      setValue("deadline", new Date(editingOpportunity.deadline).toISOString().split('T')[0]);
+      
+      setSelectedDepartments(editingOpportunity.eligibleDepartments);
+      setSelectedYears(editingOpportunity.eligibleYears);
+    }
+  }, [editingOpportunity, setValue]);
+  
+  const fetchOpportunities = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('job_opportunities')
+        .select('*')
+        .order('posted_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      const formattedOpportunities = data.map(item => ({
+        id: item.id,
+        title: item.title,
+        company: item.company,
+        location: item.location,
+        description: item.description,
+        requirements: item.requirements,
+        eligibleDepartments: item.eligible_departments,
+        eligibleYears: item.eligible_years,
+        minimumCgpa: item.minimum_cgpa,
+        package: item.package,
+        postedBy: {
+          id: item.posted_by,
+          name: "Training & Placement Cell",
+          role: UserRole.PLACEMENT
+        },
+        postedAt: item.posted_at,
+        deadline: item.deadline
+      }));
+      
+      setOpportunities(formattedOpportunities);
+    } catch (error: any) {
+      console.error("Error fetching opportunities:", error);
+      toast({
+        title: "Error fetching opportunities",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const fetchApplicationCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('job_id, count')
+        .select('job_id, count(*)')
+        .group('job_id');
+        
+      if (error) throw error;
+      
+      const counts = data.reduce((acc, item) => {
+        acc[item.job_id] = item.count;
+        return acc;
+      }, {} as {[jobId: string]: number});
+      
+      setApplications(counts);
+    } catch (error: any) {
+      console.error("Error fetching application counts:", error);
+    }
+  };
+  
+  const fetchApplicantsForJob = async (jobId: string) => {
+    setIsLoadingApplicants(true);
+    try {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select(`
+          id,
+          student_id,
+          applied_at,
+          status,
+          profiles!job_applications_student_id_fkey(
+            first_name,
+            last_name,
+            avatar
+          ),
+          students!inner(
+            department,
+            year,
+            prn
+          )
+        `)
+        .eq('job_id', jobId);
+        
+      if (error) throw error;
+      
+      setJobApplicants(data || []);
+    } catch (error: any) {
+      console.error("Error fetching applicants:", error);
+      toast({
+        title: "Error fetching applicants",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingApplicants(false);
+    }
+  };
+  
+  const onSubmit = async (data: any) => {
+    if (selectedDepartments.length === 0 || selectedYears.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please select at least one department and year",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Mock success notification
-    toast({
-      title: "Opportunity created",
-      description: "The job opportunity has been successfully posted.",
-    });
+    setIsSubmitting(true);
     
-    // Reset form
-    reset();
-    setSelectedDepartments([]);
-    setSelectedYears([]);
+    try {
+      const processedRequirements = data.requirements.split(',').map((req: string) => req.trim());
+      
+      const jobData = {
+        title: data.title,
+        company: data.company,
+        location: data.location,
+        description: data.description,
+        requirements: processedRequirements,
+        eligible_departments: selectedDepartments,
+        eligible_years: selectedYears,
+        minimum_cgpa: parseFloat(data.minimumCgpa),
+        package: parseFloat(data.package),
+        deadline: new Date(data.deadline).toISOString(),
+        posted_by: user?.id
+      };
+      
+      let result;
+      
+      if (editingOpportunity) {
+        // Update existing opportunity
+        result = await supabase
+          .from('job_opportunities')
+          .update(jobData)
+          .eq('id', editingOpportunity.id);
+          
+        if (result.error) throw result.error;
+        
+        toast({
+          title: "Opportunity updated",
+          description: "The job opportunity has been successfully updated.",
+        });
+      } else {
+        // Create new opportunity
+        result = await supabase
+          .from('job_opportunities')
+          .insert([jobData]);
+          
+        if (result.error) throw result.error;
+        
+        toast({
+          title: "Opportunity created",
+          description: "The job opportunity has been successfully posted.",
+        });
+      }
+      
+      // Reset form and state
+      reset();
+      setSelectedDepartments([]);
+      setSelectedYears([]);
+      setEditingOpportunity(null);
+      
+      // Refresh opportunities
+      fetchOpportunities();
+      fetchApplicationCounts();
+      
+    } catch (error: any) {
+      console.error("Error submitting opportunity:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDepartmentToggle = (department: Department) => {
@@ -53,12 +260,68 @@ const Opportunities = () => {
     );
   };
 
-  const handleDeleteOpportunity = (id: string) => {
-    setOpportunities(prev => prev.filter(opp => opp.id !== id));
-    toast({
-      title: "Opportunity deleted",
-      description: "The job opportunity has been successfully deleted.",
-    });
+  const handleDeleteOpportunity = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('job_opportunities')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setOpportunities(prev => prev.filter(opp => opp.id !== id));
+      
+      toast({
+        title: "Opportunity deleted",
+        description: "The job opportunity has been successfully deleted.",
+      });
+    } catch (error: any) {
+      console.error("Error deleting opportunity:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleEditOpportunity = (opportunity: JobOpportunity) => {
+    setEditingOpportunity(opportunity);
+  };
+  
+  const handleViewApplications = (jobId: string) => {
+    setViewApplicationsFor(jobId);
+    fetchApplicantsForJob(jobId);
+  };
+  
+  const handleUpdateApplicationStatus = async (applicationId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('job_applications')
+        .update({ status })
+        .eq('id', applicationId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setJobApplicants(prev => 
+        prev.map(app => 
+          app.id === applicationId ? { ...app, status } : app
+        )
+      );
+      
+      toast({
+        title: "Status updated",
+        description: `Application status updated to ${status}`,
+      });
+    } catch (error: any) {
+      console.error("Error updating application status:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
   
   return (
@@ -72,8 +335,12 @@ const Opportunities = () => {
         </TabsList>
         
         <TabsContent value="view" className="space-y-4 mt-4">
-          {opportunities.length > 0 ? (
-            opportunities.map((opportunity, index) => (
+          {isLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : opportunities.length > 0 ? (
+            opportunities.map((opportunity) => (
               <Card key={opportunity.id}>
                 <CardHeader className="pb-3">
                   <div className="flex justify-between">
@@ -86,7 +353,11 @@ const Opportunities = () => {
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="icon">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleEditOpportunity(opportunity)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button 
@@ -158,8 +429,16 @@ const Opportunities = () => {
                       </div>
                       
                       <div className="pt-4">
-                        <Button className="w-full bg-placement-primary hover:bg-placement-primary/90">
-                          View Applications
+                        <Button 
+                          className="w-full bg-placement-primary hover:bg-placement-primary/90"
+                          onClick={() => handleViewApplications(opportunity.id)}
+                        >
+                          View Applications 
+                          {applications[opportunity.id] && (
+                            <Badge className="ml-2 bg-white text-placement-primary">
+                              {applications[opportunity.id]}
+                            </Badge>
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -184,9 +463,12 @@ const Opportunities = () => {
         <TabsContent value="create" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Create New Job Opportunity</CardTitle>
+              <CardTitle>{editingOpportunity ? "Edit Job Opportunity" : "Create New Job Opportunity"}</CardTitle>
               <CardDescription>
-                Fill in the details below to post a new job opportunity for students.
+                {editingOpportunity 
+                  ? "Update the details of the job opportunity."
+                  : "Fill in the details below to post a new job opportunity for students."
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -295,6 +577,7 @@ const Opportunities = () => {
                       id="package" 
                       type="number" 
                       placeholder="e.g. 12" 
+                      step="0.1"
                       {...register("package", { required: true, min: 0 })}
                     />
                     {errors.package && <p className="text-red-500 text-xs">Valid package required</p>}
@@ -323,18 +606,129 @@ const Opportunities = () => {
                   {errors.deadline && <p className="text-red-500 text-xs">This field is required</p>}
                 </div>
                 
-                <Button 
-                  type="submit" 
-                  className="bg-placement-primary hover:bg-placement-primary/90"
-                  disabled={selectedDepartments.length === 0 || selectedYears.length === 0}
-                >
-                  <Plus className="h-4 w-4 mr-2" /> Post Opportunity
-                </Button>
+                <div className="flex gap-2">
+                  {editingOpportunity && (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        setEditingOpportunity(null);
+                        reset();
+                        setSelectedDepartments([]);
+                        setSelectedYears([]);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  <Button 
+                    type="submit" 
+                    className="bg-placement-primary hover:bg-placement-primary/90"
+                    disabled={isSubmitting || selectedDepartments.length === 0 || selectedYears.length === 0}
+                  >
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {editingOpportunity ? "Update Opportunity" : "Post Opportunity"}
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Applications Dialog */}
+      <Dialog 
+        open={viewApplicationsFor !== null} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewApplicationsFor(null);
+            setJobApplicants([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Job Applications</DialogTitle>
+            <DialogDescription>
+              Students who have applied for this job opportunity.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingApplicants ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : jobApplicants.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Year</TableHead>
+                  <TableHead>PRN</TableHead>
+                  <TableHead>Applied On</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {jobApplicants.map((application) => (
+                  <TableRow key={application.id}>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full overflow-hidden bg-muted">
+                        {application.profiles?.avatar && (
+                          <img 
+                            src={application.profiles.avatar} 
+                            alt={`${application.profiles.first_name}`}
+                            className="h-full w-full object-cover" 
+                          />
+                        )}
+                      </div>
+                      <span>
+                        {application.profiles?.first_name} {application.profiles?.last_name}
+                      </span>
+                    </TableCell>
+                    <TableCell>{application.students?.department}</TableCell>
+                    <TableCell>{application.students?.year}</TableCell>
+                    <TableCell>{application.students?.prn}</TableCell>
+                    <TableCell>{new Date(application.applied_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge className={
+                        application.status === "pending" ? "bg-yellow-500" :
+                        application.status === "shortlisted" ? "bg-green-500" :
+                        "bg-red-500"
+                      }>
+                        {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Select
+                        value={application.status}
+                        onValueChange={(value) => handleUpdateApplicationStatus(application.id, value)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="shortlisted">Shortlist</SelectItem>
+                          <SelectItem value="rejected">Reject</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No applications yet</h3>
+              <p className="text-muted-foreground">No students have applied for this job opportunity yet.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
