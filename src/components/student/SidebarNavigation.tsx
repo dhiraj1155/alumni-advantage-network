@@ -10,9 +10,7 @@ import {
   User, 
   Award, 
   Briefcase, 
-  Book, 
-  MessageSquare, 
-  FileText 
+  Book 
 } from "lucide-react";
 
 interface SidebarNavigationProps {
@@ -34,8 +32,6 @@ export const SidebarNavigation = ({
     { name: "Leaderboard", path: "/student/leaderboard", icon: Award },
     { name: "Opportunities", path: "/student/opportunities", icon: Briefcase },
     { name: "Quizzes", path: "/student/quizzes", icon: Book },
-    { name: "Interview Bot", path: "/student/interview-bot", icon: MessageSquare },
-    { name: "Resume Analyzer", path: "/student/resume-analyzer", icon: FileText },
   ];
 
   return (

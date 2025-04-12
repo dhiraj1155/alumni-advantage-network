@@ -61,8 +61,6 @@ const App = () => (
               <Route path="leaderboard" element={<StudentLayout><StudentLeaderboard /></StudentLayout>} />
               <Route path="opportunities" element={<StudentLayout><StudentOpportunities /></StudentLayout>} />
               <Route path="quizzes" element={<StudentLayout><div>Quizzes - Coming Soon</div></StudentLayout>} />
-              <Route path="interview-bot" element={<StudentLayout><div>Interview Bot - Coming Soon</div></StudentLayout>} />
-              <Route path="resume-analyzer" element={<StudentLayout><div>Resume Analyzer - Coming Soon</div></StudentLayout>} />
             </Route>
             
             {/* Placement Cell Routes */}

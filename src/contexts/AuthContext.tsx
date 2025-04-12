@@ -5,6 +5,7 @@ import { mockUsers, setCurrentUserByRole } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 interface AuthContextType {
   user: User | null;
@@ -22,7 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
 
   // Function to load user profile data
   const loadUserProfile = async (userId: string, userEmail: string) => {
@@ -58,11 +59,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to refresh user profile
   const refreshProfile = async () => {
-    if (!session?.user) return;
+    if (!session?.user) {
+      console.log("No session found, cannot refresh profile");
+      return;
+    }
     
-    const userData = await loadUserProfile(session.user.id, session.user.email || '');
-    if (userData) {
-      setUser(userData);
+    setIsLoading(true);
+    try {
+      console.log("Refreshing user profile for:", session.user.id);
+      const userData = await loadUserProfile(session.user.id, session.user.email || '');
+      if (userData) {
+        console.log("Profile refreshed successfully:", userData);
+        setUser(userData);
+      } else {
+        console.error("Failed to refresh profile - no data returned");
+      }
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+      toast.error("Failed to refresh user profile");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -81,9 +97,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (userData) {
             setUser(userData);
+            setIsLoading(false);
+          } else {
+            setIsLoading(false);
           }
         } else {
           setUser(null);
+          setIsLoading(false);
         }
       }
     );
