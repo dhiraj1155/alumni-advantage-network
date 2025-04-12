@@ -10,7 +10,6 @@ import MainLayout from "@/components/layout/MainLayout";
 import StudentLayout from "@/components/layout/StudentLayout";
 import PlacementLayout from "@/components/layout/PlacementLayout";
 import AlumniLayout from "@/components/layout/AlumniLayout";
-import OnboardingCheck from "@/components/onboarding/OnboardingCheck";
 import Index from "./pages/Index";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -52,15 +51,17 @@ const App = () => (
               path="/student" 
               element={
                 <ProtectedRoute allowedRoles={[UserRole.STUDENT]}>
-                  <OnboardingCheck />
+                  <StudentLayout />
                 </ProtectedRoute>
               }
             >
-              <Route path="dashboard" element={<StudentLayout><StudentDashboard /></StudentLayout>} />
-              <Route path="profile" element={<StudentLayout><StudentProfile /></StudentLayout>} />
-              <Route path="leaderboard" element={<StudentLayout><StudentLeaderboard /></StudentLayout>} />
-              <Route path="opportunities" element={<StudentLayout><StudentOpportunities /></StudentLayout>} />
-              <Route path="quizzes" element={<StudentLayout><div>Quizzes - Coming Soon</div></StudentLayout>} />
+              <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="profile" element={<StudentProfile />} />
+              <Route path="leaderboard" element={<StudentLeaderboard />} />
+              <Route path="opportunities" element={<StudentOpportunities />} />
+              <Route path="quizzes" element={<div>Quizzes - Coming Soon</div>} />
+              <Route path="interview-bot" element={<div>Interview Bot - Coming Soon</div>} />
+              <Route path="resume-analyzer" element={<div>Resume Analyzer - Coming Soon</div>} />
             </Route>
             
             {/* Placement Cell Routes */}

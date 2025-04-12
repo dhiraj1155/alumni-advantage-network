@@ -5,9 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { BookOpen, TrendingUp, Award, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Department, Year } from "@/types";
+import { mockStudents } from "@/lib/mock-data";
 
 // Mock quiz progress data
 const quizProgressData = [
@@ -20,74 +18,20 @@ const quizProgressData = [
   { name: "Jul", score: 85 },
 ];
 
-interface StudentData {
-  id: string;
-  prn: string;
-  department: Department;
-  year: Year;
-  is_seda: boolean | null;
-  is_placed: boolean | null;
-  resume_url: string | null;
-  created_at?: string;
-  updated_at?: string;
-  user_id?: string;
-  quizzes?: Array<{ score: number }>;
-}
-
 const Dashboard = () => {
   const { user } = useAuth();
-  const [studentData, setStudentData] = useState<StudentData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [studentData, setStudentData] = useState<any>(null);
   
   useEffect(() => {
-    const fetchStudentData = async () => {
-      if (!user) {
-        setIsLoading(false);
-        return;
-      }
-      
-      try {
-        // Fetch student data from Supabase
-        const { data, error } = await supabase
-          .from('students')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-          
-        if (error) {
-          console.error("Error fetching student data:", error);
-          toast.error("Failed to load student data");
-          setIsLoading(false);
-          return;
-        }
-        
-        if (data) {
-          // Add mock quizzes data for now
-          const studentWithQuizzes = {
-            ...data,
-            quizzes: [
-              { score: 85 },
-              { score: 78 },
-              { score: 92 }
-            ],
-            department: data.department as Department,
-            year: data.year as Year
-          };
-          
-          setStudentData(studentWithQuizzes);
-        }
-      } catch (error) {
-        console.error("Error fetching student data:", error);
-        toast.error("Failed to load student data");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchStudentData();
+    if (user) {
+      // In a real app, we would fetch the student data from the API
+      // For now, we'll use the mock data
+      const student = mockStudents.find(s => s.userId === user.id);
+      setStudentData(student);
+    }
   }, [user]);
 
-  if (isLoading) {
+  if (!studentData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-placement-primary"></div>
@@ -95,24 +39,9 @@ const Dashboard = () => {
     );
   }
 
-  if (!studentData) {
-    return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-        <Card>
-          <CardContent className="p-6">
-            <p>No student data found. Please complete your profile.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Calculate average quiz score
-  const averageScore = studentData.quizzes 
-    ? studentData.quizzes.reduce((sum, quiz) => sum + quiz.score, 0) / 
-      (studentData.quizzes.length || 1)
-    : 0;
+  const averageScore = studentData.quizzes.reduce((sum: number, quiz: any) => sum + quiz.score, 0) / 
+                      (studentData.quizzes.length || 1);
 
   return (
     <div className="space-y-6">
@@ -132,34 +61,42 @@ const Dashboard = () => {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Department</CardTitle>
+            <CardTitle className="text-sm font-medium">Resume Status</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{studentData.department}</div>
+            <div className="text-2xl font-bold">{studentData.resumeUrl ? "Uploaded" : "Not Uploaded"}</div>
+            {studentData.resumeUrl && (
+              <p className="text-xs text-muted-foreground">
+                Last updated: {new Date().toLocaleDateString()}
+              </p>
+            )}
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Year</CardTitle>
+            <CardTitle className="text-sm font-medium">Leaderboard Rank</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{studentData.year}</div>
+            <div className="text-2xl font-bold">12</div>
             <p className="text-xs text-muted-foreground">
-              {studentData.is_seda ? "SEDA Member" : "Regular Student"}
+              Out of 120 students
             </p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Placement Status</CardTitle>
+            <CardTitle className="text-sm font-medium">Avg. Quiz Score</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{studentData.is_placed ? "Placed" : "Not Placed"}</div>
+            <div className="text-2xl font-bold">{averageScore.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
+              From {studentData.quizzes.length} quizzes
+            </p>
           </CardContent>
         </Card>
       </div>
