@@ -13,6 +13,7 @@ interface AuthContextType {
   register: (email: string, password: string, firstName: string, lastName: string, role: UserRole) => Promise<boolean>;
   logout: () => void;
   setTestUser: (role: UserRole) => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,45 +24,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // Function to load user profile data
+  const loadUserProfile = async (userId: string, userEmail: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        return null;
+      }
+      
+      if (data) {
+        const userData: User = {
+          id: userId,
+          email: userEmail,
+          firstName: data.first_name,
+          lastName: data.last_name,
+          role: data.role as UserRole,
+          avatar: data.avatar
+        };
+        
+        return userData;
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+    }
+    return null;
+  };
+
+  // Function to refresh user profile
+  const refreshProfile = async () => {
+    if (!session?.user) return;
+    
+    const userData = await loadUserProfile(session.user.id, session.user.email || '');
+    if (userData) {
+      setUser(userData);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession);
         setSession(currentSession);
         
         if (currentSession?.user) {
-          // Get user profile data from our profiles table
-          setTimeout(async () => {
-            try {
-              const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', currentSession.user.id)
-                .single();
-                
-              if (error) {
-                console.error("Error fetching user profile:", error);
-                return;
-              }
-              
-              if (data) {
-                const userData: User = {
-                  id: currentSession.user.id,
-                  email: currentSession.user.email || '',
-                  firstName: data.first_name,
-                  lastName: data.last_name,
-                  role: data.role as UserRole,
-                  avatar: data.avatar
-                };
-                
-                setUser(userData);
-                console.log("User profile loaded:", userData);
-              }
-            } catch (error) {
-              console.error("Failed to fetch profile:", error);
-            }
-          }, 0);
+          const userData = await loadUserProfile(
+            currentSession.user.id, 
+            currentSession.user.email || ''
+          );
+          
+          if (userData) {
+            setUser(userData);
+          }
         } else {
           setUser(null);
         }
@@ -74,24 +94,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
         if (initialSession?.user) {
-          const { data } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', initialSession.user.id)
-            .single();
-            
-          if (data) {
-            const userData: User = {
-              id: initialSession.user.id,
-              email: initialSession.user.email || '',
-              firstName: data.first_name,
-              lastName: data.last_name,
-              role: data.role as UserRole,
-              avatar: data.avatar
-            };
-            
+          const userData = await loadUserProfile(
+            initialSession.user.id, 
+            initialSession.user.email || ''
+          );
+          
+          if (userData) {
             setUser(userData);
-            console.log("Initial user profile loaded:", userData);
           }
         }
       } catch (error) {
@@ -243,7 +252,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, setTestUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoading, 
+      login, 
+      register, 
+      logout, 
+      setTestUser, 
+      refreshProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );
