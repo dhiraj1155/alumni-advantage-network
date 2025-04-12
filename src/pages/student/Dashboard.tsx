@@ -6,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { BookOpen, TrendingUp, Award, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { mockStudents } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock quiz progress data
 const quizProgressData = [
@@ -21,17 +22,50 @@ const quizProgressData = [
 const Dashboard = () => {
   const { user } = useAuth();
   const [studentData, setStudentData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    if (user) {
-      // In a real app, we would fetch the student data from the API
-      // For now, we'll use the mock data
-      const student = mockStudents.find(s => s.userId === user.id);
-      setStudentData(student);
-    }
+    const fetchStudentData = async () => {
+      if (!user) return;
+      
+      try {
+        // Try to get data from Supabase first
+        const { data: studentProfile, error } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching student data:", error);
+          // Fallback to mock data
+          const mockStudent = mockStudents.find(s => s.userId === user.id);
+          setStudentData(mockStudent);
+        } else if (studentProfile) {
+          // Enhance with skills and quizzes from mock data for now
+          // In a real app, these would be separate tables
+          const mockStudent = mockStudents.find(s => s.userId === user.id);
+          setStudentData({
+            ...studentProfile,
+            skills: mockStudent?.skills || [],
+            quizzes: mockStudent?.quizzes || [],
+            socialLinks: mockStudent?.socialLinks || {}
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch student data:", error);
+        // Fallback to mock data
+        const mockStudent = mockStudents.find(s => s.userId === user.id);
+        setStudentData(mockStudent);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStudentData();
   }, [user]);
 
-  if (!studentData) {
+  if (isLoading || !studentData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-placement-primary"></div>
@@ -40,8 +74,9 @@ const Dashboard = () => {
   }
 
   // Calculate average quiz score
-  const averageScore = studentData.quizzes.reduce((sum: number, quiz: any) => sum + quiz.score, 0) / 
-                      (studentData.quizzes.length || 1);
+  const averageScore = studentData.quizzes && studentData.quizzes.length > 0
+    ? studentData.quizzes.reduce((sum: number, quiz: any) => sum + quiz.score, 0) / studentData.quizzes.length
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -61,29 +96,21 @@ const Dashboard = () => {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resume Status</CardTitle>
+            <CardTitle className="text-sm font-medium">Department</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{studentData.resumeUrl ? "Uploaded" : "Not Uploaded"}</div>
-            {studentData.resumeUrl && (
-              <p className="text-xs text-muted-foreground">
-                Last updated: {new Date().toLocaleDateString()}
-              </p>
-            )}
+            <div className="text-2xl font-bold">{studentData.department}</div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leaderboard Rank</CardTitle>
+            <CardTitle className="text-sm font-medium">Year</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">
-              Out of 120 students
-            </p>
+            <div className="text-2xl font-bold">{studentData.year}</div>
           </CardContent>
         </Card>
         
@@ -95,7 +122,7 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{averageScore.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              From {studentData.quizzes.length} quizzes
+              From {studentData.quizzes?.length || 0} quizzes
             </p>
           </CardContent>
         </Card>
@@ -201,7 +228,7 @@ const Dashboard = () => {
                   <FileText className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-medium">Updated Resume</p>
+                  <p className="font-medium">Updated Profile</p>
                   <p className="text-sm text-gray-500">5 days ago</p>
                 </div>
               </div>

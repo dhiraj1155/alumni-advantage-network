@@ -11,10 +11,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { mockStudents } from "@/lib/mock-data";
 import { Department, Year } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Profile = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const { user, refreshProfile } = useAuth();
+  const { toast: shadowToast } = useToast();
   const [studentData, setStudentData] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,25 +24,79 @@ const Profile = () => {
     github: "",
     portfolio: ""
   });
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    if (user) {
-      // In a real app, we would fetch the student data from the API
-      // For now, we'll use the mock data
-      const student = mockStudents.find(s => s.userId === user.id);
-      setStudentData(student);
+    const fetchStudentData = async () => {
+      if (!user) return;
       
-      if (student) {
-        setFormData({
-          linkedin: student.socialLinks.linkedin || "",
-          github: student.socialLinks.github || "",
-          portfolio: student.socialLinks.portfolio || ""
-        });
+      try {
+        // Try to get data from Supabase first
+        const { data: studentProfile, error } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+          
+        // Get social links
+        const { data: socialLinks, error: socialError } = await supabase
+          .from('social_links')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching student data:", error);
+          // Fallback to mock data
+          const mockStudent = mockStudents.find(s => s.userId === user.id);
+          setStudentData(mockStudent);
+          
+          if (mockStudent) {
+            setFormData({
+              linkedin: mockStudent.socialLinks.linkedin || "",
+              github: mockStudent.socialLinks.github || "",
+              portfolio: mockStudent.socialLinks.portfolio || ""
+            });
+          }
+        } else {
+          // Merge student data with social links and mock skills/quizzes for now
+          const mockStudent = mockStudents.find(s => s.userId === user.id);
+          
+          setStudentData({
+            ...studentProfile,
+            skills: mockStudent?.skills || [],
+            quizzes: mockStudent?.quizzes || [],
+            socialLinks: socialLinks || { linkedin: "", github: "", portfolio: "" }
+          });
+          
+          setFormData({
+            linkedin: socialLinks?.linkedin || "",
+            github: socialLinks?.github || "",
+            portfolio: socialLinks?.portfolio || ""
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch student data:", error);
+        // Fallback to mock data
+        const mockStudent = mockStudents.find(s => s.userId === user.id);
+        setStudentData(mockStudent);
+        
+        if (mockStudent) {
+          setFormData({
+            linkedin: mockStudent.socialLinks.linkedin || "",
+            github: mockStudent.socialLinks.github || "",
+            portfolio: mockStudent.socialLinks.portfolio || ""
+          });
+        }
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    fetchStudentData();
   }, [user]);
 
-  if (!studentData) {
+  if (isLoading || !studentData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-placement-primary"></div>
@@ -56,18 +112,88 @@ const Profile = () => {
     }));
   };
 
-  const handleSocialLinksSave = () => {
-    // In a real app, we would save this to the API
-    toast({
-      title: "Social links updated",
-      description: "Your social links have been successfully updated.",
-    });
-    setIsEditMode(false);
+  const handleSocialLinksSave = async () => {
+    try {
+      // Check if social links record exists
+      const { data: existingLinks, error: checkError } = await supabase
+        .from('social_links')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single();
+        
+      if (checkError && checkError.code !== 'PGRST116') {
+        // Error other than "no rows returned"
+        console.error("Error checking social links:", checkError);
+        toast("Failed to update", {
+          description: "There was an error updating your social links. Please try again.",
+        });
+        return;
+      }
+      
+      if (existingLinks) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('social_links')
+          .update({
+            linkedin: formData.linkedin,
+            github: formData.github,
+            portfolio: formData.portfolio
+          })
+          .eq('id', existingLinks.id);
+          
+        if (updateError) {
+          console.error("Error updating social links:", updateError);
+          toast("Failed to update", {
+            description: "There was an error updating your social links. Please try again.",
+          });
+          return;
+        }
+      } else {
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from('social_links')
+          .insert({
+            user_id: user?.id,
+            linkedin: formData.linkedin,
+            github: formData.github,
+            portfolio: formData.portfolio
+          });
+          
+        if (insertError) {
+          console.error("Error inserting social links:", insertError);
+          toast("Failed to save", {
+            description: "There was an error saving your social links. Please try again.",
+          });
+          return;
+        }
+      }
+      
+      // Update local state
+      setStudentData(prev => ({
+        ...prev,
+        socialLinks: {
+          linkedin: formData.linkedin,
+          github: formData.github,
+          portfolio: formData.portfolio
+        }
+      }));
+      
+      toast("Links updated", {
+        description: "Your social links have been successfully updated.",
+      });
+      
+      setIsEditMode(false);
+    } catch (error) {
+      console.error("Error saving social links:", error);
+      toast("Failed to save", {
+        description: "An unexpected error occurred. Please try again.",
+      });
+    }
   };
 
   const handleResumeUpload = () => {
     // In a real app, we would handle file upload
-    toast({
+    shadowToast({
       title: "Resume uploaded",
       description: "Your resume has been successfully uploaded and your skills have been extracted.",
     });
@@ -106,18 +232,18 @@ const Profile = () => {
                 <Badge variant="outline" className="border-placement-primary/50 text-placement-primary">
                   {studentData.year}
                 </Badge>
-                {studentData.isSeda && (
+                {studentData.is_seda && (
                   <Badge variant="outline" className="border-placement-primary/50 text-placement-primary">
                     SEDA
                   </Badge>
                 )}
-                {studentData.isPlaced && (
+                {studentData.is_placed && (
                   <Badge className="bg-green-600">
                     Placed
                   </Badge>
                 )}
               </div>
-              <Button variant="outline" className="w-full" onClick={() => window.open(studentData.resumeUrl, '_blank')}>
+              <Button variant="outline" className="w-full" onClick={() => window.open(studentData.resume_url, '_blank')}>
                 <FileText className="mr-2 h-4 w-4" /> View Resume
               </Button>
             </div>
@@ -178,33 +304,33 @@ const Profile = () => {
             ) : (
               <div className="space-y-4">
                 <a 
-                  href={studentData.socialLinks.linkedin || "#"} 
+                  href={studentData.socialLinks?.linkedin || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${!studentData.socialLinks.linkedin && 'pointer-events-none text-gray-400'}`}
+                  className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${!studentData.socialLinks?.linkedin && 'pointer-events-none text-gray-400'}`}
                 >
                   <Linkedin className="h-5 w-5 mr-2 text-blue-600" />
-                  <span className="text-sm">{studentData.socialLinks.linkedin || "Not added yet"}</span>
+                  <span className="text-sm">{studentData.socialLinks?.linkedin || "Not added yet"}</span>
                 </a>
                 
                 <a 
-                  href={studentData.socialLinks.github || "#"} 
+                  href={studentData.socialLinks?.github || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${!studentData.socialLinks.github && 'pointer-events-none text-gray-400'}`}
+                  className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${!studentData.socialLinks?.github && 'pointer-events-none text-gray-400'}`}
                 >
                   <Github className="h-5 w-5 mr-2 text-gray-900" />
-                  <span className="text-sm">{studentData.socialLinks.github || "Not added yet"}</span>
+                  <span className="text-sm">{studentData.socialLinks?.github || "Not added yet"}</span>
                 </a>
                 
                 <a 
-                  href={studentData.socialLinks.portfolio || "#"} 
+                  href={studentData.socialLinks?.portfolio || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${!studentData.socialLinks.portfolio && 'pointer-events-none text-gray-400'}`}
+                  className={`flex items-center p-2 rounded-md hover:bg-gray-100 ${!studentData.socialLinks?.portfolio && 'pointer-events-none text-gray-400'}`}
                 >
                   <Globe className="h-5 w-5 mr-2 text-green-600" />
-                  <span className="text-sm">{studentData.socialLinks.portfolio || "Not added yet"}</span>
+                  <span className="text-sm">{studentData.socialLinks?.portfolio || "Not added yet"}</span>
                 </a>
               </div>
             )}
@@ -249,11 +375,14 @@ const Profile = () => {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {studentData.skills.map((skill: string, index: number) => (
+            {studentData.skills && studentData.skills.map((skill: string, index: number) => (
               <Badge key={index} variant="outline" className="px-3 py-1">
                 {skill}
               </Badge>
             ))}
+            {(!studentData.skills || studentData.skills.length === 0) && (
+              <p className="text-muted-foreground">No skills added yet. Upload your resume to extract skills.</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -272,7 +401,7 @@ const Profile = () => {
               <div>Score</div>
             </div>
             <Separator />
-            {studentData.quizzes.map((quiz: any, index: number) => (
+            {studentData.quizzes && studentData.quizzes.map((quiz: any, index: number) => (
               <div key={index}>
                 <div className="grid grid-cols-4 p-3 text-sm">
                   <div>{quiz.quizName}</div>
@@ -283,7 +412,7 @@ const Profile = () => {
                 {index < studentData.quizzes.length - 1 && <Separator />}
               </div>
             ))}
-            {studentData.quizzes.length === 0 && (
+            {(!studentData.quizzes || studentData.quizzes.length === 0) && (
               <div className="p-3 text-center text-sm text-muted-foreground">
                 No quizzes taken yet.
               </div>

@@ -60,8 +60,7 @@ const App = () => (
               <Route path="leaderboard" element={<StudentLeaderboard />} />
               <Route path="opportunities" element={<StudentOpportunities />} />
               <Route path="quizzes" element={<div>Quizzes - Coming Soon</div>} />
-              <Route path="interview-bot" element={<div>Interview Bot - Coming Soon</div>} />
-              <Route path="resume-analyzer" element={<div>Resume Analyzer - Coming Soon</div>} />
+              {/* Removed interviewer bot and resume analyzer routes */}
             </Route>
             
             {/* Placement Cell Routes */}
