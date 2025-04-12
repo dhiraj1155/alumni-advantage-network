@@ -152,33 +152,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Handle specific errors
         if (error.message.includes("Email not confirmed")) {
-          toast({
-            title: "Email not verified",
-            description: "Please check your email and verify your account before logging in.",
-            variant: "destructive",
+          toast.error("Email not verified", {
+            description: "Please check your email and verify your account before logging in."
           });
         } else {
-          toast({
-            title: "Login failed",
-            description: error.message,
-            variant: "destructive",
+          toast.error("Login failed", {
+            description: error.message
           });
         }
         return false;
       }
       
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
+      toast.success("Login successful", {
+        description: "Welcome back!"
       });
       
       return true;
     } catch (error: any) {
       console.error("Unexpected login error:", error);
-      toast({
-        title: "Login failed",
-        description: "An error occurred during login. Please try again.",
-        variant: "destructive",
+      toast.error("Login failed", {
+        description: "An error occurred during login. Please try again."
       });
       return false;
     } finally {
@@ -214,26 +207,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Registration error:", error);
-        toast({
-          title: "Registration failed",
-          description: error.message,
-          variant: "destructive",
+        toast.error("Registration failed", {
+          description: error.message
         });
         return false;
       }
       
       // Show verification email notification
-      toast({
-        title: "Registration successful",
-        description: "A verification email has been sent to your inbox. Please verify your email to continue.",
+      toast.success("Registration successful", {
+        description: "A verification email has been sent to your inbox. Please verify your email to continue."
       });
       return true;
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast({
-        title: "Registration failed",
-        description: "An error occurred during registration. Please try again.",
-        variant: "destructive",
+      toast.error("Registration failed", {
+        description: "An error occurred during registration. Please try again."
       });
       return false;
     } finally {
@@ -245,16 +233,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setUser(null);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
+      toast.success("Logged out", {
+        description: "You have been successfully logged out."
       });
     } catch (error) {
       console.error("Logout error:", error);
-      toast({
-        title: "Logout failed",
-        description: "An error occurred during logout. Please try again.",
-        variant: "destructive",
+      toast.error("Logout failed", {
+        description: "An error occurred during logout. Please try again."
       });
     }
   };
@@ -264,9 +249,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const testUser = setCurrentUserByRole(role);
     if (testUser) {
       setUser(testUser);
-      toast({
-        title: "Test user set",
-        description: `Now viewing as ${role}: ${testUser.firstName} ${testUser.lastName}`,
+      toast.success("Test user set", {
+        description: `Now viewing as ${role}: ${testUser.firstName} ${testUser.lastName}`
       });
     }
   };

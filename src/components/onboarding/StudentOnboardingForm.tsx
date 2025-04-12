@@ -34,7 +34,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const StudentOnboardingForm = () => {
+interface StudentOnboardingFormProps {
+  onSubmitSuccess: () => Promise<void>;
+}
+
+const StudentOnboardingForm = ({ onSubmitSuccess }: StudentOnboardingFormProps) => {
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,8 +89,8 @@ const StudentOnboardingForm = () => {
         
       if (linksError) throw linksError;
       
-      // Refresh the user's profile to include the new data
-      await refreshProfile();
+      // Call the onSubmitSuccess callback
+      await onSubmitSuccess();
       
       toast.success("Profile setup complete!", {
         description: "Your student profile has been created successfully."
