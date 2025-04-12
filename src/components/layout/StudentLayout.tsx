@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const StudentLayout = () => {
+interface StudentLayoutProps {
+  children: ReactNode;
+}
+
+const StudentLayout = ({ children }: StudentLayoutProps) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -204,7 +208,7 @@ const StudentLayout = () => {
 
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>
