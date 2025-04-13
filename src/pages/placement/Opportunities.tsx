@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -109,7 +108,6 @@ const Opportunities = () => {
     try {
       const { data, error } = await supabase
         .from('job_applications')
-        .select('job_id, count')
         .select('job_id, count(*)')
         .group('job_id');
         
@@ -298,7 +296,7 @@ const Opportunities = () => {
     try {
       const { error } = await supabase
         .from('job_applications')
-        .update({ status })
+        .update({ status: status })
         .eq('id', applicationId);
         
       if (error) throw error;
