@@ -25,7 +25,7 @@ const studentProfileSchema = z.object({
 type StudentProfileForm = z.infer<typeof studentProfileSchema>;
 
 const MainLayout: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [isNewStudent, setIsNewStudent] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -93,6 +93,10 @@ const MainLayout: React.FC = () => {
         description: "Your student profile has been created successfully."
       });
       
+      // Refresh the user profile to update state
+      await refreshProfile();
+      
+      // Set isNewStudent to false to trigger redirect
       setIsNewStudent(false);
     } catch (error: any) {
       console.error("Error creating student profile:", error);

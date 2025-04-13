@@ -115,6 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!session?.user?.id) return;
     
     try {
+      setIsLoading(true);
+      console.log("Refreshing profile for user:", session.user.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -141,6 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Failed to refresh profile:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -208,7 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             lastName,
             role,
           },
-          emailRedirectTo: window.location.origin + '/auth/login'
+          emailRedirectTo: window.location.origin + '/auth/login?emailVerified=true'
         }
       });
       
