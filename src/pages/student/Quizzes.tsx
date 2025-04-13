@@ -40,12 +40,16 @@ const Quizzes = () => {
         
       if (error) throw error;
       
-      const domains = data?.map(attempt => {
-        if (attempt.quizzes && typeof attempt.quizzes === 'object' && 'domain' in attempt.quizzes) {
-          return attempt.quizzes.domain as string;
+      const domains: string[] = [];
+      
+      data?.forEach(attempt => {
+        if (attempt.quizzes && 
+            typeof attempt.quizzes === 'object' && 
+            'domain' in attempt.quizzes && 
+            typeof attempt.quizzes.domain === 'string') {
+          domains.push(attempt.quizzes.domain);
         }
-        return '';
-      }).filter(Boolean) || [];
+      });
       
       setAttemptedDomains([...new Set(domains)]);
     } catch (error: any) {
