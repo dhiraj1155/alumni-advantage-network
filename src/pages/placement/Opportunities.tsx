@@ -46,7 +46,6 @@ const Opportunities = () => {
   
   useEffect(() => {
     if (editingOpportunity) {
-      // Populate form with opportunity data
       setValue("title", editingOpportunity.title);
       setValue("company", editingOpportunity.company);
       setValue("location", editingOpportunity.location);
@@ -194,7 +193,6 @@ const Opportunities = () => {
       let result;
       
       if (editingOpportunity) {
-        // Update existing opportunity
         result = await supabase
           .from('job_opportunities')
           .update(jobData)
@@ -207,7 +205,6 @@ const Opportunities = () => {
           description: "The job opportunity has been successfully updated.",
         });
       } else {
-        // Create new opportunity
         result = await supabase
           .from('job_opportunities')
           .insert([jobData]);
@@ -220,13 +217,11 @@ const Opportunities = () => {
         });
       }
       
-      // Reset form and state
       reset();
       setSelectedDepartments([]);
       setSelectedYears([]);
       setEditingOpportunity(null);
       
-      // Refresh opportunities
       fetchOpportunities();
       fetchApplicationCounts();
       
@@ -301,7 +296,6 @@ const Opportunities = () => {
         
       if (error) throw error;
       
-      // Update local state
       setJobApplicants(prev => 
         prev.map(app => 
           app.id === applicationId ? { ...app, status } : app
@@ -634,7 +628,6 @@ const Opportunities = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Applications Dialog */}
       <Dialog 
         open={viewApplicationsFor !== null} 
         onOpenChange={(open) => {

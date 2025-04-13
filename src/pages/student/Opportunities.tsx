@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -227,7 +226,7 @@ const StudentOpportunities = () => {
                     <SelectValue placeholder="Department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Departments</SelectItem>
+                    <SelectItem value="all-departments">All Departments</SelectItem>
                     {Object.values(Department).map((dept) => (
                       <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                     ))}
@@ -241,7 +240,7 @@ const StudentOpportunities = () => {
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Years</SelectItem>
+                    <SelectItem value="all-years">All Years</SelectItem>
                     {Object.values(Year).map((year) => (
                       <SelectItem key={year} value={year}>{year}</SelectItem>
                     ))}
