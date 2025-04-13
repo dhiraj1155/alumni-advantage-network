@@ -60,8 +60,8 @@ const StudentLayout = () => {
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <NavLink to="/student/dashboard" className="flex items-center gap-2">
-              <span className="font-bold text-xl text-placement-primary">Campus</span>
-              <span className="font-medium">Connect</span>
+              <span className="font-bold text-xl text-placement-primary">SkillSage</span>
+              <span className="font-medium"></span>
             </NavLink>
           </div>
           
