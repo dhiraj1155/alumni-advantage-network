@@ -9,9 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface SocialLinksProps {
   socialLinks: {
-    linkedin: string | null;
-    github: string | null;
-    portfolio: string | null;
+    linkedin?: string | null;
+    github?: string | null;
+    portfolio?: string | null;
   };
   onUpdate: (links: {
     linkedin: string;
@@ -60,14 +60,16 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
         return;
       }
       
+      const linksToSave = {
+        linkedin: formData.linkedin || null,
+        github: formData.github || null,
+        portfolio: formData.portfolio || null
+      };
+      
       if (existingLinks) {
         const { error: updateError } = await supabase
           .from('social_links')
-          .update({
-            linkedin: formData.linkedin,
-            github: formData.github,
-            portfolio: formData.portfolio
-          })
+          .update(linksToSave)
           .eq('id', existingLinks.id);
           
         if (updateError) {
@@ -84,9 +86,7 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
           .from('social_links')
           .insert({
             user_id: user.id,
-            linkedin: formData.linkedin,
-            github: formData.github,
-            portfolio: formData.portfolio
+            ...linksToSave
           });
           
         if (insertError) {

@@ -19,8 +19,8 @@ interface StudentData {
   department: string;
   year: string;
   prn: string;
-  is_seda: boolean;
-  is_placed: boolean;
+  is_seda: boolean | null;
+  is_placed: boolean | null;
   resume_url: string | null;
   created_at: string;
   updated_at: string;
@@ -99,9 +99,9 @@ const Profile = () => {
         console.error("Error fetching quiz attempts:", quizError);
       }
       
-      // For now, handle skills with default empty array
-      // This ensures we don't get type errors while we implement the skills feature
-      const parsedSkills = parseSkills(studentProfile.skills as string[] | undefined);
+      // Parse skills safely using our helper function
+      // Since the skills column doesn't exist yet in the database schema
+      const parsedSkills = parseSkills([]);
       
       setStudentData({
         ...studentProfile,
