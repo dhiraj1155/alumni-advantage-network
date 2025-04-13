@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,45 +43,24 @@ const Quiz = () => {
   const loadQuiz = async () => {
     setIsLoading(true);
     try {
-      // First, create a quiz record
+      const mockQuestions = generateMockQuestions(domain || '');
+      setQuestions(mockQuestions);
+      
       const { data: quizData, error: quizError } = await supabase
         .from('quizzes')
-        .insert({
+        .upsert({
           domain,
-          title: getDomainTitle(domain)
+          title: getDomainTitle(domain || '')
         })
         .select('id')
         .single();
         
-      if (quizError) throw quizError;
+      if (quizError) {
+        console.error("Error creating quiz:", quizError);
+        throw new Error("Failed to create quiz");
+      }
       
       setQuizId(quizData.id);
-      
-      // Then, generate questions
-      try {
-        // In a real scenario, we'd call the edge function
-        // For now, let's generate some mock questions
-        const mockQuestions = generateMockQuestions(domain);
-        
-        // Save questions to database
-        const questionPromises = mockQuestions.map(q => 
-          supabase
-            .from('quiz_questions')
-            .insert({
-              quiz_id: quizData.id,
-              question: q.question,
-              options: q.options,
-              correct_answer: q.correctAnswer
-            })
-        );
-        
-        await Promise.all(questionPromises);
-        
-        setQuestions(mockQuestions);
-      } catch (genError: any) {
-        console.error("Error generating questions:", genError);
-        throw new Error("Failed to generate questions");
-      }
     } catch (error: any) {
       console.error("Error loading quiz:", error);
       toast({
@@ -109,7 +87,6 @@ const Quiz = () => {
   };
   
   const generateMockQuestions = (domain: string): Question[] => {
-    // This is a placeholder - in production, we'd call the edge function
     const baseQuestions = [
       {
         id: "1",
@@ -233,7 +210,6 @@ const Quiz = () => {
   const handleNext = () => {
     if (selectedAnswer === null) return;
     
-    // Save the answer
     setAnswers({
       ...answers,
       [currentQuestion]: selectedAnswer
@@ -243,7 +219,6 @@ const Quiz = () => {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
     } else {
-      // Calculate score
       let newScore = 0;
       for (let i = 0; i < questions.length; i++) {
         if (answers[i] === questions[i].correctAnswer) {
@@ -251,7 +226,6 @@ const Quiz = () => {
         }
       }
       
-      // Add the final answer
       if (selectedAnswer === questions[currentQuestion].correctAnswer) {
         newScore++;
       }

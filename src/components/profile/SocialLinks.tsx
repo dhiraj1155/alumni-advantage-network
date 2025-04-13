@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
     
     setIsSaving(true);
     try {
-      // Check if social links record exists
       const { data: existingLinks, error: checkError } = await supabase
         .from('social_links')
         .select('id')
@@ -53,7 +51,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
         .single();
         
       if (checkError && checkError.code !== 'PGRST116') {
-        // Error other than "no rows returned"
         console.error("Error checking social links:", checkError);
         toast({
           title: "Failed to update",
@@ -64,7 +61,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
       }
       
       if (existingLinks) {
-        // Update existing record
         const { error: updateError } = await supabase
           .from('social_links')
           .update({
@@ -84,7 +80,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
           return;
         }
       } else {
-        // Insert new record
         const { error: insertError } = await supabase
           .from('social_links')
           .insert({
@@ -105,7 +100,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
         }
       }
       
-      // Update parent component
       onUpdate(formData);
       
       toast({
@@ -129,7 +123,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
   const getDisplayUrl = (url: string) => {
     if (!url) return "";
     try {
-      // Remove protocol and trailing slashes for display
       return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     } catch (e) {
       return url;
@@ -208,9 +201,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
               <Linkedin className="h-5 w-5 mr-3 text-blue-600" />
               <div className="flex flex-col">
                 <span className="font-medium">LinkedIn</span>
-                <span className="text-sm text-gray-500">
-                  {socialLinks.linkedin ? getDisplayUrl(socialLinks.linkedin) : "Not added yet"}
-                </span>
               </div>
             </a>
             
@@ -223,9 +213,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
               <Github className="h-5 w-5 mr-3 text-gray-900" />
               <div className="flex flex-col">
                 <span className="font-medium">GitHub</span>
-                <span className="text-sm text-gray-500">
-                  {socialLinks.github ? getDisplayUrl(socialLinks.github) : "Not added yet"}
-                </span>
               </div>
             </a>
             
@@ -238,9 +225,6 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
               <Globe className="h-5 w-5 mr-3 text-green-600" />
               <div className="flex flex-col">
                 <span className="font-medium">Portfolio</span>
-                <span className="text-sm text-gray-500">
-                  {socialLinks.portfolio ? getDisplayUrl(socialLinks.portfolio) : "Not added yet"}
-                </span>
               </div>
             </a>
           </div>
