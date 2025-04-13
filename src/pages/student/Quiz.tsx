@@ -43,24 +43,51 @@ const Quiz = () => {
   const loadQuiz = async () => {
     setIsLoading(true);
     try {
-      const mockQuestions = generateMockQuestions(domain || '');
-      setQuestions(mockQuestions);
+      console.log("Loading quiz for domain:", domain);
       
-      const { data: quizData, error: quizError } = await supabase
+      // First check if quiz exists, if not create it
+      const { data: existingQuiz, error: quizCheckError } = await supabase
         .from('quizzes')
-        .upsert({
-          domain,
-          title: getDomainTitle(domain || '')
-        })
-        .select('id')
-        .single();
+        .select('id, title')
+        .eq('domain', domain)
+        .maybeSingle();
         
-      if (quizError) {
-        console.error("Error creating quiz:", quizError);
-        throw new Error("Failed to create quiz");
+      if (quizCheckError) {
+        console.error("Error checking for existing quiz:", quizCheckError);
+      }
+      
+      let quizData;
+      
+      if (existingQuiz) {
+        console.log("Existing quiz found:", existingQuiz);
+        quizData = existingQuiz;
+      } else {
+        // Create a new quiz
+        console.log("Creating new quiz for domain:", domain);
+        const { data: newQuiz, error: quizCreateError } = await supabase
+          .from('quizzes')
+          .insert({
+            domain: domain,
+            title: getDomainTitle(domain || '')
+          })
+          .select('id, title')
+          .single();
+          
+        if (quizCreateError) {
+          console.error("Error creating quiz:", quizCreateError);
+          throw new Error("Failed to create quiz");
+        }
+        
+        quizData = newQuiz;
+        console.log("New quiz created:", quizData);
       }
       
       setQuizId(quizData.id);
+      
+      // Generate mock questions
+      const mockQuestions = generateMockQuestions(domain || '');
+      setQuestions(mockQuestions);
+      
     } catch (error: any) {
       console.error("Error loading quiz:", error);
       toast({
@@ -248,6 +275,7 @@ const Quiz = () => {
     
     setIsSubmitting(true);
     try {
+      console.log("Submitting quiz results:", { quizId, userId: user.id, score: finalScore, maxScore: questions.length });
       const { error } = await supabase
         .from('quiz_attempts')
         .insert({
@@ -259,6 +287,7 @@ const Quiz = () => {
         
       if (error) throw error;
       
+      console.log("Quiz results submitted successfully");
       toast({
         title: "Quiz submitted",
         description: "Your quiz results have been saved.",

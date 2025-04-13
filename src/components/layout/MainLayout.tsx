@@ -12,6 +12,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+// Form validation schema
+const studentProfileSchema = z.object({
+  department: z.string().min(1, "Department is required"),
+  year: z.string().min(1, "Year is required"),
+  prn: z.string().min(1, "PRN is required")
+});
+
+type StudentProfileForm = z.infer<typeof studentProfileSchema>;
 
 const MainLayout: React.FC = () => {
   const { user } = useAuth();
@@ -19,7 +30,8 @@ const MainLayout: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   
-  const form = useForm({
+  const form = useForm<StudentProfileForm>({
+    resolver: zodResolver(studentProfileSchema),
     defaultValues: {
       department: "",
       year: "",
@@ -33,17 +45,25 @@ const MainLayout: React.FC = () => {
       
       setIsLoading(true);
       try {
+        console.log("Checking student profile for user:", user.id);
         const { data, error } = await supabase
           .from('students')
           .select('*')
           .eq('user_id', user.id)
-          .maybeSingle(); // Use maybeSingle instead of single to handle the case where no record is found
+          .maybeSingle();
         
+        if (error) {
+          console.error("Error checking student profile:", error);
+          throw error;
+        }
+        
+        console.log("Student profile check result:", data);
         // If no student record found, show onboarding form
-        setIsNewStudent(!data);
+        setIsNewStudent(data === null);
       } catch (error) {
         console.error("Error checking student profile:", error);
-        setIsNewStudent(true); // Default to showing the form if there's an error
+        // Default to showing the form if there's an error
+        setIsNewStudent(true);
       } finally {
         setIsLoading(false);
       }
@@ -52,10 +72,11 @@ const MainLayout: React.FC = () => {
     checkStudentProfile();
   }, [user]);
   
-  const onSubmit = async (values: any) => {
+  const onSubmit = async (values: StudentProfileForm) => {
     if (!user) return;
     
     try {
+      console.log("Creating student profile with values:", values);
       const { error } = await supabase
         .from('students')
         .insert({

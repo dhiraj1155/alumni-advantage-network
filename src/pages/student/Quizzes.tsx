@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +8,7 @@ import { Code, Lightbulb, Database, Globe, Server, Brain, ArrowRight, Clock } fr
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { QuizHistory } from "@/components/student/QuizHistory";
+import QuizHistory from "@/components/profile/QuizHistory";
 
 interface Domain {
   id: string;
