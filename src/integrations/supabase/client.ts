@@ -7,4 +7,7 @@ const SUPABASE_URL = "https://vsbmrsauwrsdgujzsdkt.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm1yc2F1d3JzZGd1anpzZGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzNTI1NzEsImV4cCI6MjA1OTkyODU3MX0.2FvNCvN7YJajUbPnLTjfwHjgZHoGhzUvDZVg0thWA_Y";
 
 // We need to cast the type to any because the generated types don't include our custom tables
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY) as any;
+export const supabase = createClient(
+  SUPABASE_URL, 
+  SUPABASE_PUBLISHABLE_KEY
+) as any;
