@@ -29,5 +29,11 @@ export const convertToYear = (value: string): Year => {
   return value as Year;
 };
 
+// Helper function to parse skills array from string or return empty array
+export const parseSkills = (skills: string[] | null | undefined): string[] => {
+  if (!skills) return [];
+  return skills;
+};
+
 // Import types from our type definitions
 import { Department, Year } from '@/types';

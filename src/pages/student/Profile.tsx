@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Building, User, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, parseSkills } from "@/integrations/supabase/client";
 import { Department, Year } from "@/types";
 import ResumeUpload from "@/components/profile/ResumeUpload";
 import SocialLinks from "@/components/profile/SocialLinks";
@@ -99,11 +99,15 @@ const Profile = () => {
         console.error("Error fetching quiz attempts:", quizError);
       }
       
+      // For now, handle skills with default empty array
+      // This ensures we don't get type errors while we implement the skills feature
+      const parsedSkills = parseSkills(studentProfile.skills as string[] | undefined);
+      
       setStudentData({
         ...studentProfile,
         socialLinks: socialLinks || { linkedin: null, github: null, portfolio: null },
         quizAttempts: quizAttempts || [],
-        skills: studentProfile?.skills || []
+        skills: parsedSkills
       });
     } catch (error) {
       console.error("Failed to fetch student data:", error);
@@ -129,23 +133,20 @@ const Profile = () => {
     
     // Update the skills in the database
     if (user) {
-      const updateData: Record<string, any> = {
-        resume_url: resumeUrl
-      };
-      
-      // Store skills separately if we have a column for it
-      // For now, we'll just store it client-side
-      
       supabase
         .from('students')
-        .update(updateData)
+        .update({ 
+          resume_url: resumeUrl,
+          // We'll add skills to the database when the column exists
+          // For now, we're just storing it client-side
+        })
         .eq('user_id', user.id)
         .then(({ error }) => {
           if (error) {
-            console.error("Error updating skills:", error);
+            console.error("Error updating resume:", error);
             toast({
               title: "Error",
-              description: "Failed to update skills in the database.",
+              description: "Failed to update resume in the database.",
               variant: "destructive"
             });
           }
@@ -190,18 +191,18 @@ const Profile = () => {
               <h2 className="text-xl font-bold mb-1">{user?.firstName} {user?.lastName}</h2>
               <div className="flex items-center text-sm text-muted-foreground mb-3">
                 <Building className="h-4 w-4 mr-1" />
-                <span>{studentData.department}</span>
+                <span>{studentData?.department}</span>
               </div>
               <div className="flex gap-2 mb-4">
                 <Badge variant="outline" className="border-placement-primary/50 text-placement-primary">
-                  {studentData.year}
+                  {studentData?.year}
                 </Badge>
-                {studentData.is_seda && (
+                {studentData?.is_seda && (
                   <Badge variant="outline" className="border-placement-primary/50 text-placement-primary">
                     SEDA
                   </Badge>
                 )}
-                {studentData.is_placed && (
+                {studentData?.is_placed && (
                   <Badge className="bg-green-600">
                     Placed
                   </Badge>
@@ -213,7 +214,7 @@ const Profile = () => {
         
         {/* CARD 2: Social links */}
         <SocialLinks 
-          socialLinks={studentData.socialLinks}
+          socialLinks={studentData?.socialLinks || { linkedin: null, github: null, portfolio: null }}
           onUpdate={handleSocialLinksUpdate}
         />
         
@@ -255,9 +256,9 @@ const Profile = () => {
       <div className="grid gap-6 md:grid-cols-2">
         <ResumeUpload 
           onUploadComplete={handleResumeUpload}
-          currentResumeUrl={studentData.resume_url}
+          currentResumeUrl={studentData?.resume_url}
         />
-        <SkillsCard skills={studentData.skills || []} />
+        <SkillsCard skills={studentData?.skills || []} />
       </div>
       
       {/* CARD 5: Quiz history */}

@@ -100,7 +100,11 @@ const SocialLinks = ({ socialLinks, onUpdate }: SocialLinksProps) => {
         }
       }
       
-      onUpdate(formData);
+      onUpdate({
+        linkedin: formData.linkedin,
+        github: formData.github,
+        portfolio: formData.portfolio
+      });
       
       toast({
         title: "Links updated",
