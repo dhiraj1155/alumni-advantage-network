@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserRole } from "@/types";
 import { mockUsers, setCurrentUserByRole } from "@/lib/mock-data";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 
@@ -13,6 +13,7 @@ interface AuthContextType {
   register: (email: string, password: string, firstName: string, lastName: string, role: UserRole) => Promise<boolean>;
   logout: () => void;
   setTestUser: (role: UserRole) => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,7 +22,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -60,10 +60,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             } catch (error) {
               console.error("Failed to fetch profile:", error);
+            } finally {
+              setIsLoading(false);
             }
           }, 0);
         } else {
           setUser(null);
+          setIsLoading(false);
         }
       }
     );
@@ -108,6 +111,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  const refreshProfile = async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      setIsLoading(true);
+      console.log("Refreshing profile for user:", session.user.id);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (error) {
+        console.error("Error refreshing profile:", error);
+        return;
+      }
+      
+      if (data) {
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          firstName: data.first_name,
+          lastName: data.last_name,
+          role: data.role as UserRole,
+          avatar: data.avatar
+        };
+        
+        setUser(userData);
+        console.log("Profile refreshed:", userData);
+      }
+    } catch (error) {
+      console.error("Failed to refresh profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
@@ -123,33 +164,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Handle specific errors
         if (error.message.includes("Email not confirmed")) {
-          toast({
-            title: "Email not verified",
+          toast("Email not verified", {
             description: "Please check your email and verify your account before logging in.",
-            variant: "destructive",
           });
         } else {
-          toast({
-            title: "Login failed",
+          toast("Login failed", {
             description: error.message,
-            variant: "destructive",
           });
         }
         return false;
       }
       
-      toast({
-        title: "Login successful",
+      toast("Login successful", {
         description: "Welcome back!",
       });
       
       return true;
     } catch (error: any) {
       console.error("Unexpected login error:", error);
-      toast({
-        title: "Login failed",
+      toast("Login failed", {
         description: "An error occurred during login. Please try again.",
-        variant: "destructive",
       });
       return false;
     } finally {
@@ -179,32 +213,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             lastName,
             role,
           },
-          emailRedirectTo: window.location.origin + '/auth/login'
+          emailRedirectTo: window.location.origin + '/auth/login?emailVerified=true'
         }
       });
       
       if (error) {
         console.error("Registration error:", error);
-        toast({
-          title: "Registration failed",
+        toast("Registration failed", {
           description: error.message,
-          variant: "destructive",
         });
         return false;
       }
       
       // Show verification email notification
-      toast({
-        title: "Registration successful",
+      toast("Registration successful", {
         description: "A verification email has been sent to your inbox. Please verify your email to continue.",
       });
       return true;
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast({
-        title: "Registration failed",
+      toast("Registration failed", {
         description: "An error occurred during registration. Please try again.",
-        variant: "destructive",
       });
       return false;
     } finally {
@@ -216,16 +245,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setUser(null);
-      toast({
-        title: "Logged out",
+      toast("Logged out", {
         description: "You have been successfully logged out.",
       });
     } catch (error) {
       console.error("Logout error:", error);
-      toast({
-        title: "Logout failed",
+      toast("Logout failed", {
         description: "An error occurred during logout. Please try again.",
-        variant: "destructive",
       });
     }
   };
@@ -235,15 +261,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const testUser = setCurrentUserByRole(role);
     if (testUser) {
       setUser(testUser);
-      toast({
-        title: "Test user set",
+      toast("Test user set", {
         description: `Now viewing as ${role}: ${testUser.firstName} ${testUser.lastName}`,
       });
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, setTestUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, setTestUser, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

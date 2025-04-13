@@ -1,330 +1,337 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Award, Medal, Trophy, Search } from "lucide-react";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Trophy, Medal, Award, Search, Filter, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Department } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mock leaderboard data
-const leaderboardData = [
-  {
-    id: 1,
-    name: "Jane Smith",
-    avatar: "https://ui-avatars.com/api/?name=Jane+Smith",
-    department: Department.INFORMATION,
-    year: "TY",
-    score: 98,
-    quizzesTaken: 15
-  },
-  {
-    id: 2,
-    name: "Alex Johnson",
-    avatar: "https://ui-avatars.com/api/?name=Alex+Johnson",
-    department: Department.COMPUTER,
-    year: "BTECH",
-    score: 95,
-    quizzesTaken: 14
-  },
-  {
-    id: 3,
-    name: "Sam Wilson",
-    avatar: "https://ui-avatars.com/api/?name=Sam+Wilson",
-    department: Department.CSE_AI,
-    year: "TY",
-    score: 92,
-    quizzesTaken: 12
-  },
-  {
-    id: 4,
-    name: "John Doe",
-    avatar: "https://ui-avatars.com/api/?name=John+Doe",
-    department: Department.COMPUTER,
-    year: "TY",
-    score: 90,
-    quizzesTaken: 15
-  },
-  {
-    id: 5,
-    name: "Rita Patel",
-    avatar: "https://ui-avatars.com/api/?name=Rita+Patel",
-    department: Department.ELECTRONICS,
-    year: "BTECH",
-    score: 89,
-    quizzesTaken: 13
-  },
-  {
-    id: 6,
-    name: "Michael Brown",
-    avatar: "https://ui-avatars.com/api/?name=Michael+Brown",
-    department: Department.MECHANICAL,
-    year: "TY",
-    score: 87,
-    quizzesTaken: 14
-  },
-  {
-    id: 7,
-    name: "Sarah Lee",
-    avatar: "https://ui-avatars.com/api/?name=Sarah+Lee",
-    department: Department.CSE_AIML,
-    year: "SY",
-    score: 85,
-    quizzesTaken: 11
-  },
-  {
-    id: 8,
-    name: "David Chen",
-    avatar: "https://ui-avatars.com/api/?name=David+Chen",
-    department: Department.CSE_DATA,
-    year: "TY",
-    score: 84,
-    quizzesTaken: 10
-  },
-  {
-    id: 9,
-    name: "Emma Watson",
-    avatar: "https://ui-avatars.com/api/?name=Emma+Watson",
-    department: Department.INFORMATION,
-    year: "SY",
-    score: 83,
-    quizzesTaken: 12
-  },
-  {
-    id: 10,
-    name: "Raj Sharma",
-    avatar: "https://ui-avatars.com/api/?name=Raj+Sharma",
-    department: Department.COMPUTER,
-    year: "BTECH",
-    score: 82,
-    quizzesTaken: 13
-  }
-];
+interface StudentScore {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  department?: string;
+  year?: string;
+  isSeda?: boolean;
+  prn?: string;
+  totalScore: number;
+  totalPossible: number;
+  quizCount: number;
+  score?: number;
+  percentage?: number;
+  averageScore?: number;
+}
 
-// Mock department leaderboard data
-const departmentLeaderboard = Object.values(Department).map((dept, index) => ({
-  id: index + 1,
-  department: dept,
-  averageScore: Math.round(75 + Math.random() * 20),
-  studentsParticipated: Math.round(50 + Math.random() * 100),
-  totalQuizzes: Math.round(300 + Math.random() * 400)
-})).sort((a, b) => b.averageScore - a.averageScore);
+interface ProfileData {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  avatar?: string;
+}
+
+interface StudentData {
+  department?: string;
+  year?: string;
+  is_seda?: boolean;
+  prn?: string;
+}
+
+interface QuizAttemptJoin {
+  id: string;
+  student_id: string;
+  score: number;
+  max_score: number;
+  profiles?: ProfileData;
+  students?: StudentData;
+}
 
 const Leaderboard = () => {
-  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [leaderboardData, setLeaderboardData] = useState<StudentScore[]>([]);
+  const [filteredData, setFilteredData] = useState<StudentScore[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all-departments");
   
-  // Filter students based on search and department
-  const filteredLeaderboard = leaderboardData.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment = !departmentFilter || student.department === departmentFilter;
-    return matchesSearch && matchesDepartment;
-  });
-
-  // Find the current user's rank
-  const currentUserRank = leaderboardData.findIndex(student => student.name === "John Doe") + 1;
+  useEffect(() => {
+    fetchLeaderboardData();
+  }, []);
+  
+  useEffect(() => {
+    applyFilters();
+  }, [leaderboardData, searchTerm, departmentFilter]);
+  
+  const fetchLeaderboardData = async () => {
+    setIsLoading(true);
+    try {
+      // Split our queries to avoid join errors
+      
+      // First, get all quiz attempts
+      const { data: attempts, error: attemptsError } = await supabase
+        .from('quiz_attempts')
+        .select('id, student_id, score, max_score');
+        
+      if (attemptsError) throw attemptsError;
+      
+      // Get profile data for each student
+      const studentIds = [...new Set(attempts.map(a => a.student_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar')
+        .in('id', studentIds);
+        
+      if (profilesError) throw profilesError;
+      
+      // Get student data for each student
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('user_id, department, year, is_seda, prn')
+        .in('user_id', studentIds);
+        
+      if (studentsError) throw studentsError;
+      
+      // Create a map of student id to profile data
+      const profileMap: Record<string, ProfileData> = {};
+      profiles.forEach(profile => {
+        profileMap[profile.id] = profile;
+      });
+      
+      // Create a map of user id to student data
+      const studentMap: Record<string, StudentData> = {};
+      students.forEach(student => {
+        studentMap[student.user_id] = student;
+      });
+      
+      // Group by student_id and calculate total score and average
+      const studentScores: Record<string, StudentScore> = {};
+      
+      attempts.forEach(attempt => {
+        const studentId = attempt.student_id;
+        if (!studentScores[studentId]) {
+          const profile = profileMap[studentId];
+          const student = studentMap[studentId];
+          
+          studentScores[studentId] = {
+            id: studentId,
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            avatar: profile?.avatar,
+            department: student?.department,
+            year: student?.year,
+            isSeda: student?.is_seda,
+            prn: student?.prn,
+            totalScore: 0,
+            totalPossible: 0,
+            quizCount: 0
+          };
+        }
+        
+        studentScores[studentId].totalScore += attempt.score;
+        studentScores[studentId].totalPossible += attempt.max_score;
+        studentScores[studentId].quizCount += 1;
+      });
+      
+      // Convert to array and sort by percentage
+      const leaderboard = Object.values(studentScores)
+        .map(student => ({
+          ...student,
+          score: student.totalScore,
+          percentage: Math.round((student.totalScore / student.totalPossible) * 100) || 0,
+          averageScore: Math.round(student.totalScore / student.quizCount) || 0
+        }))
+        .sort((a, b) => b.percentage! - a.percentage!);
+      
+      setLeaderboardData(leaderboard);
+    } catch (error: any) {
+      console.error("Error fetching leaderboard data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load leaderboard data.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const applyFilters = () => {
+    let filtered = [...leaderboardData];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(student => 
+        student.firstName?.toLowerCase().includes(term) ||
+        student.lastName?.toLowerCase().includes(term) ||
+        student.prn?.toLowerCase().includes(term)
+      );
+    }
+    
+    // Apply department filter
+    if (departmentFilter !== "all-departments") {
+      filtered = filtered.filter(student => 
+        student.department === departmentFilter
+      );
+    }
+    
+    setFilteredData(filtered);
+  };
+  
+  const getRankColor = (index: number) => {
+    switch (index) {
+      case 0: return "text-yellow-500";
+      case 1: return "text-gray-400";
+      case 2: return "text-amber-700";
+      default: return "text-gray-700";
+    }
+  };
+  
+  const getRankIcon = (index: number) => {
+    switch (index) {
+      case 0: return <Trophy className="h-5 w-5 text-yellow-500" />;
+      case 1: return <Medal className="h-5 w-5 text-gray-400" />;
+      case 2: return <Award className="h-5 w-5 text-amber-700" />;
+      default: return null;
+    }
+  };
   
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Leaderboard</h1>
       
-      {/* User's current rank */}
-      <Card className="bg-gradient-to-r from-placement-primary to-placement-secondary text-white">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row items-center gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm">
-                <Trophy className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white/70">Your Current Rank</p>
-                <p className="text-3xl font-bold">#{currentUserRank}</p>
-              </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or PRN..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             
-            <div className="md:ml-auto flex items-center gap-8">
-              <div>
-                <p className="text-sm font-medium text-white/70">Score</p>
-                <p className="text-2xl font-bold">90</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium text-white/70">Quizzes Taken</p>
-                <p className="text-2xl font-bold">15</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium text-white/70">Department Rank</p>
-                <p className="text-2xl font-bold">#2</p>
-              </div>
-            </div>
+            <Select 
+              value={departmentFilter} 
+              onValueChange={setDepartmentFilter}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all-departments">All Departments</SelectItem>
+                {Object.values(Department).map((dept) => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
       
-      <Tabs defaultValue="students">
+      <Tabs defaultValue="overall">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="students">Student Rankings</TabsTrigger>
-          <TabsTrigger value="departments">Department Rankings</TabsTrigger>
+          <TabsTrigger value="overall">Overall Performance</TabsTrigger>
+          <TabsTrigger value="domain">Domain-specific</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="students" className="mt-4 space-y-4">
+        <TabsContent value="overall" className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle>Top Performers</CardTitle>
+              <CardTitle>Student Rankings</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Search and filter */}
-              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-4 mb-6">
-                <div className="md:col-span-3">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search students..."
-                      className="pl-8"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-                
-                <div>
-                  <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Departments</SelectItem>
-                      {Object.values(Department).map((dept) => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              {/* Top 3 students */}
-              <div className="grid gap-4 md:grid-cols-3 mb-8">
-                {filteredLeaderboard.slice(0, 3).map((student, index) => (
-                  <Card key={student.id} className={`border-2 ${index === 0 ? 'border-yellow-400' : index === 1 ? 'border-gray-300' : 'border-amber-600'}`}>
-                    <CardContent className="pt-6 pb-4 text-center">
-                      <div className="flex justify-center mb-4">
-                        {index === 0 ? (
-                          <div className="relative">
-                            <Avatar className="h-20 w-20 border-4 border-yellow-400">
-                              <AvatarImage src={student.avatar} alt={student.name} />
-                              <AvatarFallback>{student.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+              ) : filteredData.length > 0 ? (
+                <Table>
+                  <TableCaption>
+                    Leaderboard based on quiz performance
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Rank</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Year</TableHead>
+                      <TableHead className="text-right">Score</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.map((student, index) => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold ${getRankColor(index)}`}>
+                              {index + 1}
+                            </span>
+                            {getRankIcon(index)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={student.avatar} alt={student.firstName} />
+                              <AvatarFallback>{student.firstName?.[0]}{student.lastName?.[0]}</AvatarFallback>
                             </Avatar>
-                            <div className="absolute -top-3 -right-3 bg-yellow-400 text-black rounded-full p-1">
-                              <Trophy className="h-6 w-6" />
+                            <div>
+                              <div className="font-medium">{student.firstName} {student.lastName}</div>
+                              <div className="text-xs text-muted-foreground">{student.prn}</div>
                             </div>
                           </div>
-                        ) : (
-                          <Avatar className={`h-20 w-20 border-4 ${index === 1 ? 'border-gray-300' : 'border-amber-600'}`}>
-                            <AvatarImage src={student.avatar} alt={student.name} />
-                            <AvatarFallback>{student.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                          </Avatar>
-                        )}
-                      </div>
-                      <h3 className="text-lg font-bold mb-1">{student.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">{student.department} • {student.year}</p>
-                      <div className="flex justify-center gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Rank</p>
-                          <p className="text-xl font-bold">#{index + 1}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Score</p>
-                          <p className="text-xl font-bold">{student.score}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Quizzes</p>
-                          <p className="text-xl font-bold">{student.quizzesTaken}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              {/* Rest of the leaderboard */}
-              <div className="space-y-3">
-                {filteredLeaderboard.slice(3).map((student, index) => (
-                  <div 
-                    key={student.id} 
-                    className={`flex items-center p-3 rounded-md border ${student.name === "John Doe" ? "bg-placement-primary/5 border-placement-primary/30" : ""}`}
-                  >
-                    <div className="w-12 text-center font-bold text-lg text-muted-foreground">
-                      #{index + 4}
-                    </div>
-                    <Avatar className="h-10 w-10 mr-3">
-                      <AvatarImage src={student.avatar} alt={student.name} />
-                      <AvatarFallback>{student.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="font-medium">{student.name}</div>
-                      <div className="text-sm text-muted-foreground">{student.department} • {student.year}</div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <div className="text-sm text-muted-foreground">Score</div>
-                        <div className="font-bold">{student.score}</div>
-                      </div>
-                      <div className="text-center min-w-[70px]">
-                        <div className="text-sm text-muted-foreground">Quizzes</div>
-                        <div className="font-bold">{student.quizzesTaken}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        </TableCell>
+                        <TableCell>
+                          {student.department}
+                          {student.isSeda && (
+                            <Badge variant="outline" className="ml-2 border-placement-primary/50 text-placement-primary">
+                              SEDA
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{student.year}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="font-medium">{student.percentage}%</span>
+                            <Progress value={student.percentage} className="h-1.5 w-16" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No students found matching the filters.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
         
-        <TabsContent value="departments" className="mt-4">
+        <TabsContent value="domain" className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle>Department Rankings</CardTitle>
+              <CardTitle>Domain-specific Rankings</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {departmentLeaderboard.map((dept, index) => (
-                  <div 
-                    key={dept.id} 
-                    className={`flex items-center p-4 rounded-md border ${index < 3 ? "border-placement-primary/30" : ""}`}
-                  >
-                    <div className="w-12 text-center">
-                      {index === 0 ? (
-                        <Medal className="h-6 w-6 text-yellow-500 mx-auto" />
-                      ) : index === 1 ? (
-                        <Medal className="h-6 w-6 text-gray-400 mx-auto" />
-                      ) : index === 2 ? (
-                        <Medal className="h-6 w-6 text-amber-700 mx-auto" />
-                      ) : (
-                        <div className="font-bold text-lg text-muted-foreground">#{index + 1}</div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium">{dept.department}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {dept.studentsParticipated} participants • {dept.totalQuizzes} quizzes taken
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <div className="text-sm text-muted-foreground">Avg. Score</div>
-                        <div className="font-bold">{dept.averageScore}%</div>
-                      </div>
-                      {index === 0 && (
-                        <Badge className="bg-yellow-500 ml-2">Top Department</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Domain-specific leaderboards will be available soon.</p>
               </div>
             </CardContent>
           </Card>

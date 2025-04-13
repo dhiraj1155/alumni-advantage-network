@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -136,4 +135,18 @@ export interface PlacementStats {
   placedStudents: number;
   averagePackage: number;
   highestPackage: number;
+}
+
+export interface JobApplication {
+  id: string;
+  jobId: string;
+  studentId: string;
+  appliedAt: string;
+  status: ApplicationStatus;
+}
+
+export enum ApplicationStatus {
+  PENDING = "pending",
+  SHORTLISTED = "shortlisted",
+  REJECTED = "rejected"
 }

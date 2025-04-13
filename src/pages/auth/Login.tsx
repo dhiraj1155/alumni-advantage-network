@@ -17,7 +17,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
 
-  const { login, setTestUser } = useAuth();
+  const { login, setTestUser, user } = useAuth();
   const navigate = useNavigate();
 
   // Check for email verification success in URL
@@ -30,6 +30,26 @@ const Login = () => {
       });
     }
   }, []);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      // Redirect based on user role
+      switch (user.role) {
+        case UserRole.STUDENT:
+          navigate('/student/dashboard');
+          break;
+        case UserRole.PLACEMENT:
+          navigate('/placement/dashboard');
+          break;
+        case UserRole.ALUMNI:
+          navigate('/alumni/dashboard');
+          break;
+        default:
+          navigate('/');
+      }
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +64,7 @@ const Login = () => {
         toast.success("Login successful!", {
           description: "Welcome back to the placement portal."
         });
-        navigate("/");
+        // The redirect will happen through the useEffect above
       }
     } catch (err: any) {
       console.error("Login error:", err);

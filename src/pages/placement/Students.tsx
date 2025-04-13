@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,7 +19,6 @@ const Students = () => {
     skills: ""
   });
   
-  // Apply filters whenever the filters or students change
   useEffect(() => {
     let result = students;
     
@@ -71,7 +69,6 @@ const Students = () => {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Students</h1>
       
-      {/* Filters */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center">
@@ -148,7 +145,6 @@ const Students = () => {
         </CardContent>
       </Card>
       
-      {/* Results */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Student Results ({filteredStudents.length})</CardTitle>

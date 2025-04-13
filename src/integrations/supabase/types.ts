@@ -9,6 +9,86 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      job_applications: {
+        Row: {
+          applied_at: string
+          id: string
+          job_id: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          applied_at?: string
+          id?: string
+          job_id: string
+          status?: string
+          student_id: string
+        }
+        Update: {
+          applied_at?: string
+          id?: string
+          job_id?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_opportunities: {
+        Row: {
+          company: string
+          deadline: string
+          description: string
+          eligible_departments: string[]
+          eligible_years: string[]
+          id: string
+          location: string
+          minimum_cgpa: number
+          package: number
+          posted_at: string
+          posted_by: string
+          requirements: string[]
+          title: string
+        }
+        Insert: {
+          company: string
+          deadline: string
+          description: string
+          eligible_departments: string[]
+          eligible_years: string[]
+          id?: string
+          location: string
+          minimum_cgpa: number
+          package: number
+          posted_at?: string
+          posted_by: string
+          requirements: string[]
+          title: string
+        }
+        Update: {
+          company?: string
+          deadline?: string
+          description?: string
+          eligible_departments?: string[]
+          eligible_years?: string[]
+          id?: string
+          location?: string
+          minimum_cgpa?: number
+          package?: number
+          posted_at?: string
+          posted_by?: string
+          requirements?: string[]
+          title?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar: string | null
@@ -36,6 +116,166 @@ export type Database = {
           last_name?: string | null
           role?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      quiz_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          max_score: number
+          quiz_id: string
+          score: number
+          student_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          max_score: number
+          quiz_id: string
+          score: number
+          student_id: string
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          max_score?: number
+          quiz_id?: string
+          score?: number
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_questions: {
+        Row: {
+          correct_answer: string
+          id: string
+          options: Json
+          question: string
+          quiz_id: string
+        }
+        Insert: {
+          correct_answer: string
+          id?: string
+          options: Json
+          question: string
+          quiz_id: string
+        }
+        Update: {
+          correct_answer?: string
+          id?: string
+          options?: Json
+          question?: string
+          quiz_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quizzes: {
+        Row: {
+          created_at: string
+          domain: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      social_links: {
+        Row: {
+          created_at: string
+          github: string | null
+          id: string
+          leetcode: string | null
+          linkedin: string | null
+          portfolio: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          github?: string | null
+          id?: string
+          leetcode?: string | null
+          linkedin?: string | null
+          portfolio?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          github?: string | null
+          id?: string
+          leetcode?: string | null
+          linkedin?: string | null
+          portfolio?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          created_at: string
+          department: string
+          id: string
+          is_placed: boolean | null
+          is_seda: boolean | null
+          prn: string
+          resume_url: string | null
+          updated_at: string
+          user_id: string
+          year: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          id?: string
+          is_placed?: boolean | null
+          is_seda?: boolean | null
+          prn: string
+          resume_url?: string | null
+          updated_at?: string
+          user_id: string
+          year: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          id?: string
+          is_placed?: boolean | null
+          is_seda?: boolean | null
+          prn?: string
+          resume_url?: string | null
+          updated_at?: string
+          user_id?: string
+          year?: string
         }
         Relationships: []
       }

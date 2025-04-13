@@ -18,8 +18,6 @@ import {
   Award, 
   Briefcase, 
   Book, 
-  MessageSquare, 
-  FileText,
   LogOut,
   Menu,
   X
@@ -43,8 +41,7 @@ const StudentLayout = () => {
     { name: "Leaderboard", path: "/student/leaderboard", icon: Award },
     { name: "Opportunities", path: "/student/opportunities", icon: Briefcase },
     { name: "Quizzes", path: "/student/quizzes", icon: Book },
-    { name: "Interview Bot", path: "/student/interview-bot", icon: MessageSquare },
-    { name: "Resume Analyzer", path: "/student/resume-analyzer", icon: FileText },
+    // Removed Interview Bot and Resume Analyzer items
   ];
 
   return (
