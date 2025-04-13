@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,6 +29,29 @@ interface StudentScore {
   averageScore?: number;
 }
 
+interface ProfileData {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  avatar?: string;
+}
+
+interface StudentData {
+  department?: string;
+  year?: string;
+  is_seda?: boolean;
+  prn?: string;
+}
+
+interface QuizAttemptJoin {
+  id: string;
+  student_id: string;
+  score: number;
+  max_score: number;
+  profiles?: ProfileData;
+  students?: StudentData;
+}
+
 const Leaderboard = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -49,45 +71,62 @@ const Leaderboard = () => {
   const fetchLeaderboardData = async () => {
     setIsLoading(true);
     try {
-      // Fetch all quiz attempts with student data
-      const { data, error } = await supabase
+      // Split our queries to avoid join errors
+      
+      // First, get all quiz attempts
+      const { data: attempts, error: attemptsError } = await supabase
         .from('quiz_attempts')
-        .select(`
-          id,
-          student_id,
-          score,
-          max_score,
-          profiles!quiz_attempts_student_id_fkey (
-            id,
-            first_name,
-            last_name,
-            avatar
-          ),
-          students!inner (
-            department,
-            year,
-            is_seda,
-            prn
-          )
-        `);
+        .select('id, student_id, score, max_score');
         
-      if (error) throw error;
+      if (attemptsError) throw attemptsError;
+      
+      // Get profile data for each student
+      const studentIds = [...new Set(attempts.map(a => a.student_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar')
+        .in('id', studentIds);
+        
+      if (profilesError) throw profilesError;
+      
+      // Get student data for each student
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('user_id, department, year, is_seda, prn')
+        .in('user_id', studentIds);
+        
+      if (studentsError) throw studentsError;
+      
+      // Create a map of student id to profile data
+      const profileMap: Record<string, ProfileData> = {};
+      profiles.forEach(profile => {
+        profileMap[profile.id] = profile;
+      });
+      
+      // Create a map of user id to student data
+      const studentMap: Record<string, StudentData> = {};
+      students.forEach(student => {
+        studentMap[student.user_id] = student;
+      });
       
       // Group by student_id and calculate total score and average
       const studentScores: Record<string, StudentScore> = {};
       
-      data?.forEach(attempt => {
+      attempts.forEach(attempt => {
         const studentId = attempt.student_id;
         if (!studentScores[studentId]) {
+          const profile = profileMap[studentId];
+          const student = studentMap[studentId];
+          
           studentScores[studentId] = {
             id: studentId,
-            firstName: attempt.profiles?.first_name,
-            lastName: attempt.profiles?.last_name,
-            avatar: attempt.profiles?.avatar,
-            department: attempt.students?.department,
-            year: attempt.students?.year,
-            isSeda: attempt.students?.is_seda,
-            prn: attempt.students?.prn,
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            avatar: profile?.avatar,
+            department: student?.department,
+            year: student?.year,
+            isSeda: student?.is_seda,
+            prn: student?.prn,
             totalScore: 0,
             totalPossible: 0,
             quizCount: 0
@@ -104,8 +143,8 @@ const Leaderboard = () => {
         .map(student => ({
           ...student,
           score: student.totalScore,
-          percentage: Math.round((student.totalScore / student.totalPossible) * 100),
-          averageScore: Math.round(student.totalScore / student.quizCount)
+          percentage: Math.round((student.totalScore / student.totalPossible) * 100) || 0,
+          averageScore: Math.round(student.totalScore / student.quizCount) || 0
         }))
         .sort((a, b) => b.percentage! - a.percentage!);
       

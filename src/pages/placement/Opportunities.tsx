@@ -1,3 +1,5 @@
+
+// I'm going to update only the parts with errors, not the entire file
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -12,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Building, Calendar, MapPin, Briefcase, Clock, CreditCard, Users, Plus, FileText, Edit, Trash, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Department, Year, JobOpportunity, UserRole } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, convertToDepartment, convertToYear } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -70,15 +72,15 @@ const Opportunities = () => {
         
       if (error) throw error;
       
-      const formattedOpportunities = data.map(item => ({
+      const formattedOpportunities: JobOpportunity[] = data.map(item => ({
         id: item.id,
         title: item.title,
         company: item.company,
         location: item.location,
         description: item.description,
-        requirements: item.requirements,
-        eligibleDepartments: item.eligible_departments,
-        eligibleYears: item.eligible_years,
+        requirements: item.requirements as string[],
+        eligibleDepartments: item.eligible_departments.map(dept => convertToDepartment(dept)),
+        eligibleYears: item.eligible_years.map(year => convertToYear(year)),
         minimumCgpa: item.minimum_cgpa,
         package: item.package,
         postedBy: {
@@ -105,17 +107,19 @@ const Opportunities = () => {
   
   const fetchApplicationCounts = async () => {
     try {
+      // PostgreSQL aggregation isn't directly supported by Supabase JS
+      // Use a workaround approach
       const { data, error } = await supabase
         .from('job_applications')
-        .select('job_id, count(*)')
-        .group('job_id');
+        .select('job_id');
         
       if (error) throw error;
       
-      const counts = data.reduce((acc, item) => {
-        acc[item.job_id] = item.count;
-        return acc;
-      }, {} as {[jobId: string]: number});
+      // Group by job_id and count manually
+      const counts: Record<string, number> = {};
+      data.forEach(app => {
+        counts[app.job_id] = (counts[app.job_id] || 0) + 1;
+      });
       
       setApplications(counts);
     } catch (error: any) {

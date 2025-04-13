@@ -18,3 +18,16 @@ export const supabase = createClient<Database>(
     }
   }
 );
+
+// Helper function to handle type conversion for Department enum
+export const convertToDepartment = (value: string): Department => {
+  return value as Department;
+};
+
+// Helper function to handle type conversion for Year enum
+export const convertToYear = (value: string): Year => {
+  return value as Year;
+};
+
+// Import types from our type definitions
+import { Department, Year } from '@/types';

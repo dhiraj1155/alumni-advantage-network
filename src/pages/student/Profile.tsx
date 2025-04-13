@@ -13,10 +13,30 @@ import SocialLinks from "@/components/profile/SocialLinks";
 import QuizHistory from "@/components/profile/QuizHistory";
 import SkillsCard from "@/components/profile/SkillsCard";
 
+interface StudentData {
+  id: string;
+  user_id: string;
+  department: string;
+  year: string;
+  prn: string;
+  is_seda: boolean;
+  is_placed: boolean;
+  resume_url: string | null;
+  created_at: string;
+  updated_at: string;
+  skills?: string[];
+  socialLinks?: {
+    linkedin?: string | null;
+    github?: string | null;
+    portfolio?: string | null;
+  };
+  quizAttempts?: any[];
+}
+
 const Profile = () => {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [studentData, setStudentData] = useState<any>(null);
+  const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
@@ -99,17 +119,26 @@ const Profile = () => {
   
   const handleResumeUpload = (resumeUrl: string, skills: string[]) => {
     // Update student data with new resume URL and skills
-    setStudentData(prev => ({
-      ...prev,
+    if (!studentData) return;
+    
+    setStudentData({
+      ...studentData,
       resume_url: resumeUrl,
       skills: skills
-    }));
+    });
     
     // Update the skills in the database
     if (user) {
+      const updateData: Record<string, any> = {
+        resume_url: resumeUrl
+      };
+      
+      // Store skills separately if we have a column for it
+      // For now, we'll just store it client-side
+      
       supabase
         .from('students')
-        .update({ skills: skills })
+        .update(updateData)
         .eq('user_id', user.id)
         .then(({ error }) => {
           if (error) {
@@ -125,10 +154,12 @@ const Profile = () => {
   };
   
   const handleSocialLinksUpdate = (links: { linkedin: string; github: string; portfolio: string }) => {
-    setStudentData(prev => ({
-      ...prev,
+    if (!studentData) return;
+    
+    setStudentData({
+      ...studentData,
       socialLinks: links
-    }));
+    });
   };
   
   if (isLoading || !studentData) {

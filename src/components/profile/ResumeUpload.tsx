@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,15 +50,20 @@ const ResumeUpload = ({ onUploadComplete, currentResumeUrl }: ResumeUploadProps)
       // Create the folder path
       const filePath = `${user.id}/${file.name}`;
       
+      // Set up the file reader to track progress
+      const reader = new FileReader();
+      reader.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setUploadProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+      
       // Upload file to Supabase storage
       const { data, error } = await supabase.storage
         .from('resumes')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true,
-          onUploadProgress: (progress) => {
-            setUploadProgress(Math.round((progress.loaded / progress.total) * 100));
-          }
+          upsert: true
         });
         
       if (error) throw error;

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Department, Year, JobOpportunity, UserRole } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, convertToDepartment, convertToYear } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const StudentOpportunities = () => {
@@ -54,15 +54,15 @@ const StudentOpportunities = () => {
         
       if (error) throw error;
       
-      const formattedOpportunities = data.map(item => ({
+      const formattedOpportunities: JobOpportunity[] = data.map(item => ({
         id: item.id,
         title: item.title,
         company: item.company,
         location: item.location,
         description: item.description,
-        requirements: item.requirements,
-        eligibleDepartments: item.eligible_departments,
-        eligibleYears: item.eligible_years,
+        requirements: item.requirements as string[],
+        eligibleDepartments: item.eligible_departments.map(dept => convertToDepartment(dept)),
+        eligibleYears: item.eligible_years.map(year => convertToYear(year)),
         minimumCgpa: item.minimum_cgpa,
         package: item.package,
         postedBy: {
@@ -104,29 +104,24 @@ const StudentOpportunities = () => {
   };
   
   const filteredOpportunities = opportunities.filter(job => {
-    // Filter by search term
     const matchesSearch = 
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.location.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Filter by department if selected
     const matchesDepartment = !filters.department || job.eligibleDepartments.includes(filters.department as Department);
     
-    // Filter by year if selected
     const matchesYear = !filters.year || job.eligibleYears.includes(filters.year as Year);
     
     return matchesSearch && matchesDepartment && matchesYear;
   });
   
   const handleApply = async (jobId: string) => {
-    // Don't allow double applications
     if (appliedJobs.includes(jobId)) return;
     
     setApplyingToJob(jobId);
     
     try {
-      // Submit application to database
       const { error } = await supabase
         .from('job_applications')
         .insert([
@@ -135,7 +130,6 @@ const StudentOpportunities = () => {
         
       if (error) throw error;
       
-      // Update local state
       setAppliedJobs([...appliedJobs, jobId]);
       
       toast({
@@ -145,13 +139,11 @@ const StudentOpportunities = () => {
     } catch (error: any) {
       console.error("Error submitting application:", error);
       
-      // Check for unique constraint violation (already applied)
       if (error.code === '23505') {
         toast({
           title: "Already applied",
           description: "You have already applied for this job opportunity.",
         });
-        // Update local state to reflect this
         setAppliedJobs([...appliedJobs, jobId]);
       } else {
         toast({
@@ -181,7 +173,6 @@ const StudentOpportunities = () => {
   };
 
   const handleTabChange = (tabId: string) => {
-    // Find the tab element and focus it
     const tabElement = document.querySelector(`[data-value="${tabId}"]`);
     if (tabElement) {
       (tabElement as HTMLElement).focus();
@@ -203,7 +194,6 @@ const StudentOpportunities = () => {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Opportunities</h1>
       
-      {/* Search and Filter */}
       <Card>
         <CardContent className="pt-6">
           <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
@@ -260,7 +250,6 @@ const StudentOpportunities = () => {
         </CardContent>
       </Card>
       
-      {/* Job Listings */}
       <Tabs defaultValue="all">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all">All Jobs</TabsTrigger>
@@ -368,7 +357,10 @@ const StudentOpportunities = () => {
                 <CardHeader className="pb-2">
                   <div className="flex justify-between">
                     <div>
-                      <CardTitle className="text-xl">{job.title}</CardTitle>
+                      <div className="flex items-center mb-1">
+                        <Badge className="bg-green-600 mr-2">Applied</Badge>
+                        <CardTitle className="text-xl">{job.title}</CardTitle>
+                      </div>
                       <CardDescription className="flex items-center mt-1">
                         <Building className="h-4 w-4 mr-1" /> {job.company}
                         <span className="mx-2">•</span>
