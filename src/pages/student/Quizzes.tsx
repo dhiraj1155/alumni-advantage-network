@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,8 +40,13 @@ const Quizzes = () => {
         
       if (error) throw error;
       
-      const domains = data?.map(attempt => attempt.quizzes.domain) || [];
-      // Get unique domains
+      const domains = data?.map(attempt => {
+        if (attempt.quizzes && typeof attempt.quizzes === 'object' && 'domain' in attempt.quizzes) {
+          return attempt.quizzes.domain as string;
+        }
+        return '';
+      }).filter(Boolean) || [];
+      
       setAttemptedDomains([...new Set(domains)]);
     } catch (error: any) {
       console.error("Error fetching attempted quizzes:", error);

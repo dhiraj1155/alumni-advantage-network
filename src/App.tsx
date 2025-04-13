@@ -6,6 +6,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import StudentLayout from "@/components/layout/StudentLayout";
 import PlacementLayout from "@/components/layout/PlacementLayout";
 import AlumniLayout from "@/components/layout/AlumniLayout";
+import { UserRole } from "@/types";
 
 // Auth Pages
 import Login from "@/pages/auth/Login";
@@ -57,7 +58,7 @@ function App() {
           
           {/* Student routes */}
           <Route path="/student" element={
-            <ProtectedRoute allowedRoles={["student"]}>
+            <ProtectedRoute allowedRoles={[UserRole.STUDENT]}>
               <StudentLayout />
             </ProtectedRoute>
           }>
@@ -71,7 +72,7 @@ function App() {
           
           {/* Placement routes */}
           <Route path="/placement" element={
-            <ProtectedRoute allowedRoles={["placement"]}>
+            <ProtectedRoute allowedRoles={[UserRole.PLACEMENT]}>
               <PlacementLayout />
             </ProtectedRoute>
           }>
@@ -83,7 +84,7 @@ function App() {
           
           {/* Alumni routes */}
           <Route path="/alumni" element={
-            <ProtectedRoute allowedRoles={["alumni"]}>
+            <ProtectedRoute allowedRoles={[UserRole.ALUMNI]}>
               <AlumniLayout />
             </ProtectedRoute>
           }>

@@ -13,11 +13,28 @@ import { Department } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+interface StudentScore {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  department?: string;
+  year?: string;
+  isSeda?: boolean;
+  prn?: string;
+  totalScore: number;
+  totalPossible: number;
+  quizCount: number;
+  score?: number;
+  percentage?: number;
+  averageScore?: number;
+}
+
 const Leaderboard = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
-  const [filteredData, setFilteredData] = useState<any[]>([]);
+  const [leaderboardData, setLeaderboardData] = useState<StudentScore[]>([]);
+  const [filteredData, setFilteredData] = useState<StudentScore[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all-departments");
   
@@ -57,7 +74,7 @@ const Leaderboard = () => {
       if (error) throw error;
       
       // Group by student_id and calculate total score and average
-      const studentScores = {};
+      const studentScores: Record<string, StudentScore> = {};
       
       data?.forEach(attempt => {
         const studentId = attempt.student_id;
@@ -90,7 +107,7 @@ const Leaderboard = () => {
           percentage: Math.round((student.totalScore / student.totalPossible) * 100),
           averageScore: Math.round(student.totalScore / student.quizCount)
         }))
-        .sort((a, b) => b.percentage - a.percentage);
+        .sort((a, b) => b.percentage! - a.percentage!);
       
       setLeaderboardData(leaderboard);
     } catch (error: any) {
